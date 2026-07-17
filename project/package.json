@@ -1,0 +1,47 @@
+{
+  "name": "cinebook",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-oauth/google": "^0.13.5",
+    "@stomp/stompjs": "^7.3.0",
+    "axios": "^1.7.2",
+    "country-state-city": "^3.2.1",
+    "framer-motion": "^12.42.2",
+    "html2pdf.js": "^0.14.0",
+    "jwt-decode": "^4.0.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.344.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.7.0",
+    "react-leaflet": "^4.2.1",
+    "react-router-dom": "^6.30.4",
+    "sockjs-client": "^1.6.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@babel/plugin-syntax-jsx": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
+    "@eslint/js": "^9.9.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.18",
+    "eslint": "^9.9.1",
+    "eslint-plugin-react-hooks": "^5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "^0.4.11",
+    "globals": "^15.9.0",
+    "postcss": "^8.4.35",
+    "prettier": "^3.9.5",
+    "puppeteer": "^25.3.0",
+    "sucrase": "^3.35.1",
+    "tailwindcss": "^3.4.1",
+    "vite": "^5.4.2"
+  }
+}

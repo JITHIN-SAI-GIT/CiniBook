@@ -1,0 +1,4 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "java.compile.nullAnalysis.mode": "automatic"
+}
