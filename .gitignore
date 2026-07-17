@@ -1,6 +1,17 @@
 .env
 .env.*
+!.env.example
 node_modules/
 backend/target/
 __pycache__/
 *.class
+
+# GCP service account key files
+*-service-account*.json
+gcp-*.json
+credentials*.json
+
+# Aiven SSL Certificate
+ca.pem
+!package.json
+!package-lock.json
