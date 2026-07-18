@@ -14,7 +14,7 @@ export function useChatSocket() {
     // We only connect when the user mounts the widget, but we can do it on hook initialization
     const client = new Client({
       webSocketFactory: () => {
-        const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws-chat';
+        const wsUrl = import.meta.env.VITE_WS_URL || 'https://cinebook-backend-6e0a.onrender.com/ws-chat';
         return new SockJS(wsUrl);
       },
       connectHeaders: {

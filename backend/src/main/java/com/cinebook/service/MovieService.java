@@ -307,7 +307,7 @@ public class MovieService {
                 com.cinebook.service.storage.StorageProvider provider = storageManager.getProvider(primaryProvider);
                 if (provider.isConfigured()) {
                     String downloadUrl = provider.generateDownloadUrl(movie.getVideoFileName());
-                    String finalUrl = downloadUrl.startsWith("/") ? "http://localhost:8080" + downloadUrl : downloadUrl;
+                    String finalUrl = downloadUrl.startsWith("/") ? "https://cinebook-backend-6e0a.onrender.com" + downloadUrl : downloadUrl;
                     return Map.of(
                         "streamUrl", finalUrl,
                         "source", primaryProvider,
@@ -327,7 +327,7 @@ public class MovieService {
                     com.cinebook.service.storage.StorageProvider provider = storageManager.getProvider(fallbackProvider);
                     if (provider.isConfigured()) {
                         String downloadUrl = provider.generateDownloadUrl(movie.getVideoFileName());
-                        String finalUrl = downloadUrl.startsWith("/") ? "http://localhost:8080" + downloadUrl : downloadUrl;
+                        String finalUrl = downloadUrl.startsWith("/") ? "https://cinebook-backend-6e0a.onrender.com" + downloadUrl : downloadUrl;
                         log.info("Successfully fell back to provider {} for movieId={}", fallbackProvider, movieId);
                         return Map.of(
                             "streamUrl", finalUrl,

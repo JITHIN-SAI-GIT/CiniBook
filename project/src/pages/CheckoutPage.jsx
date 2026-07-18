@@ -106,7 +106,7 @@ export default function CheckoutPage() {
         order_id: orderData.id,
         handler: async function (response) {
           // Verify on backend
-          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+          const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://cinebook-backend-6e0a.onrender.com/api';
           await fetch(`${apiBaseUrl}/payments/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
