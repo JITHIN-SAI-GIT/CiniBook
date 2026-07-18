@@ -13,7 +13,10 @@ export function useChatSocket() {
   useEffect(() => {
     // We only connect when the user mounts the widget, but we can do it on hook initialization
     const client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws-chat'),
+      webSocketFactory: () => {
+        const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:8080/ws-chat';
+        return new SockJS(wsUrl);
+      },
       connectHeaders: {
         Authorization: `Bearer ${localStorage.getItem('cb_token') || ''}`,
       },

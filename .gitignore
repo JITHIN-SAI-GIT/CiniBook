@@ -13,5 +13,7 @@ credentials*.json
 
 # Aiven SSL Certificate
 ca.pem
+client-truststore.jks
+truststore.jks
 !package.json
 !package-lock.json

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import cinebookLogo from '../assets/image.png';
 import { Film, Mail, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { authApi } from '../lib/api';
 import { useToast } from '../context/ToastContext';
@@ -120,12 +121,27 @@ export default function VerifyEmailPage() {
 
       <div className="max-w-md w-full relative">
         <div className="text-center mb-8 animate-fade-in">
-          <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#e63946] to-[#c1121f] rounded-xl flex items-center justify-center shadow-lg">
-              <Film className="w-7 h-7 text-white" />
+          <Link to="/" className="inline-flex items-center gap-3 mb-6 group">
+            <div className="
+              relative flex items-center justify-center shrink-0
+              w-12 h-12 rounded-[14px]
+              bg-[rgba(255,255,255,0.03)] backdrop-blur-xl
+              border-2 border-[#cc2335]/50
+              shadow-[0_0_20px_rgba(204,35,53,0.4),inset_0_1px_0_rgba(255,255,255,0.1)]
+              transition-all duration-250 ease-[cubic-bezier(0.2,0.8,0.2,1)]
+              group-hover:scale-[1.08] group-hover:-translate-y-[2px]
+              group-hover:bg-[rgba(255,255,255,0.08)] group-hover:border-[#cc2335]/80
+              group-hover:shadow-[0_0_35px_rgba(204,35,53,0.7),inset_0_1px_0_rgba(255,255,255,0.2)]
+              overflow-hidden
+            ">
+              <img
+                src={cinebookLogo}
+                alt="CineBook"
+                className="w-[112%] h-[112%] max-w-none object-cover"
+              />
             </div>
-            <span className="text-3xl font-bold text-white font-outfit">
-              Cine<span className="text-[#ffd60a]">Book</span>
+            <span className="text-3xl font-bold text-white font-outfit tracking-tight">
+              Cine<span className="text-[#e63946]">Book</span>
             </span>
           </Link>
           <h1 className="text-2xl font-bold text-white">Verify Your Email</h1>

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-public class AuthController {
+public class AuthController {   
 
     private final AuthService authService;
 
@@ -35,7 +35,7 @@ public class AuthController {
     public ResponseEntity<AuthResponse> googleLogin(@RequestBody GoogleLoginRequest req) {
         return ResponseEntity.ok(authService.googleLogin(req));
     }
-    
+        
     @PostMapping("/verify-email-otp")
     public ResponseEntity<AuthResponse> verifyEmailOtp(@RequestBody VerifyOtpRequest req) {
         return ResponseEntity.ok(authService.verifyOtp(req));

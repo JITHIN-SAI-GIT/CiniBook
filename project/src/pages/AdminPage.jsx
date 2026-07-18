@@ -374,28 +374,35 @@ function DashboardTab({ stats, movies }) {
           <BarChart3 className="w-5 h-5 text-[#ffd60a]" />
           <h3 className="font-semibold text-white">Bookings — Last 7 Days</h3>
         </div>
-        <div className="flex items-end justify-between gap-2 h-40">
-          {stats.last7Days.map((d) => (
-            <div
-              key={d.date}
-              className="flex-1 flex flex-col items-center gap-2"
-            >
-              <div className="w-full bg-white/5 rounded-t-lg flex-1 flex items-end overflow-hidden">
+        <div className="flex items-end justify-between gap-2" style={{ minHeight: '10rem' }}>
+          {stats.last7Days.map((d) => {
+            const barMaxHeight = 112; // px – height available for bars
+            const barHeight = d.count > 0
+              ? Math.max((d.count / maxBookings) * barMaxHeight, 8)
+              : 0;
+            return (
+              <div
+                key={d.date}
+                className="flex-1 flex flex-col items-center gap-2"
+              >
                 <div
-                  className="w-full bg-gradient-to-t from-[#e63946] to-[#ff6b6b] rounded-t-lg transition-all duration-700"
-                  style={{
-                    height: `${Math.max((d.count / maxBookings) * 100, d.count > 0 ? 8 : 0)}%`,
-                  }}
-                />
+                  className="w-full bg-white/5 rounded-t-lg flex items-end overflow-hidden"
+                  style={{ height: `${barMaxHeight}px` }}
+                >
+                  <div
+                    className="w-full bg-gradient-to-t from-[#e63946] to-[#ff6b6b] rounded-t-lg transition-all duration-700"
+                    style={{ height: `${barHeight}px` }}
+                  />
+                </div>
+                <span className="text-xs text-gray-500">
+                  {new Date(d.date).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                  })}
+                </span>
+                <span className="text-xs text-white font-bold">{d.count}</span>
               </div>
-              <span className="text-xs text-gray-500">
-                {new Date(d.date).toLocaleDateString('en-US', {
-                  weekday: 'short',
-                })}
-              </span>
-              <span className="text-xs text-white font-bold">{d.count}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Film, Github, Twitter, Instagram, Facebook, Mail } from 'lucide-react';
+import { Film, Github, Instagram, Mail } from 'lucide-react';
+import cinebookLogo from '../assets/image.png';
 
 export default function Footer() {
   return (
@@ -8,12 +9,27 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="md:col-span-2 space-y-4">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-[#e63946] to-[#c1121f] rounded-xl flex items-center justify-center">
-                <Film className="w-5 h-5 text-white" />
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="
+                relative flex items-center justify-center shrink-0
+                w-9 h-9 rounded-[10px]
+                bg-[rgba(255,255,255,0.03)] backdrop-blur-xl
+                border-2 border-[#cc2335]/50
+                shadow-[0_0_15px_rgba(204,35,53,0.3),inset_0_1px_0_rgba(255,255,255,0.1)]
+                transition-all duration-250 ease-[cubic-bezier(0.2,0.8,0.2,1)]
+                group-hover:scale-[1.08] group-hover:-translate-y-[2px]
+                group-hover:bg-[rgba(255,255,255,0.08)] group-hover:border-[#cc2335]/80
+                group-hover:shadow-[0_0_25px_rgba(204,35,53,0.6),inset_0_1px_0_rgba(255,255,255,0.2)]
+                overflow-hidden
+              ">
+                <img
+                  src={cinebookLogo}
+                  alt="CineBook"
+                  className="w-[112%] h-[112%] max-w-none object-cover"
+                />
               </div>
-              <span className="text-xl font-bold text-white">
-                Cine<span className="text-[#ffd60a]">Book</span>
+              <span className="text-xl font-bold text-white tracking-tight">
+                Cine<span className="text-[#e63946]">Book</span>
               </span>
             </Link>
             <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
@@ -22,13 +38,19 @@ export default function Footer() {
               theatres.
             </p>
             <div className="flex items-center gap-3">
-              {[Github, Twitter, Instagram, Facebook].map((Icon, i) => (
-                <button
+              {[
+                { Icon: Github, url: 'https://github.com/JITHIN-SAI-GIT' },
+                { Icon: Instagram, url: 'https://www.instagram.com/just_jithinnn/?__pwa=1#' }
+              ].map(({ Icon, url }, i) => (
+                <a
                   key={i}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-9 h-9 rounded-xl glass border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-white/25 transition-all"
                 >
                   <Icon className="w-4 h-4" />
-                </button>
+                </a>
               ))}
             </div>
           </div>

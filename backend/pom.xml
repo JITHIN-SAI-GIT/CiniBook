@@ -59,6 +59,12 @@
       <artifactId>spring-boot-starter-websocket</artifactId>
     </dependency>
 
+    <!-- Actuator for Health Checks -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
     <!-- Caffeine Cache -->
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>

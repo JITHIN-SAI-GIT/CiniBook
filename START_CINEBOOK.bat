@@ -40,7 +40,7 @@ echo.
 start "CineBook Backend" cmd /k "set JAVA_HOME=C:\Program Files\Java\jdk-17 && cd /d "%~dp0backend" && mvnw.cmd spring-boot:run"
 
 REM Give backend time to start
-timeout /t 5 /nobreak >nul
+timeout /t 35 /nobreak >nul
 
 REM --- Start Frontend ---
 echo.

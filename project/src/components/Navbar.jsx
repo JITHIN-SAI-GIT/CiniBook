@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import cinebookLogo from '../assets/image.png';
 import {
   Link,
   useNavigate,
@@ -72,41 +73,59 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 group shrink-0"
-            onClick={() => setMobileOpen(false)}
-          >
-            <div className="w-9 h-9 bg-gradient-to-br from-[#e63946] to-[#c1121f] rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-              <Film className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-white">
-              Cine<span className="text-[#ffd60a]">Book</span>
-            </span>
-          </Link>
+          {/* Left — Logo + Location */}
+          <div className="flex items-center gap-3 shrink-0">
+            <Link
+              to="/"
+              className="flex items-center gap-2.5 group shrink-0"
+              onClick={() => setMobileOpen(false)}
+            >
+              <div className="
+                relative flex items-center justify-center shrink-0
+                w-[42px] h-[42px] md:w-[46px] md:h-[46px] lg:w-[52px] lg:h-[52px]
+                rounded-[12px] md:rounded-[14px] lg:rounded-[16px]
+                bg-[rgba(255,255,255,0.03)] backdrop-blur-xl
+                border-2 border-[#cc2335]/50
+                shadow-[0_0_25px_rgba(204,35,53,0.4),inset_0_1px_0_rgba(255,255,255,0.1)]
+                transition-all duration-250 ease-[cubic-bezier(0.2,0.8,0.2,1)]
+                hover:scale-[1.08] hover:-translate-y-[3px]
+                hover:bg-[rgba(255,255,255,0.08)] hover:border-[#cc2335]/80
+                hover:shadow-[0_0_40px_rgba(204,35,53,0.7),inset_0_1px_0_rgba(255,255,255,0.2)]
+                cursor-pointer overflow-hidden
+              ">
+                <img
+                  src={cinebookLogo}
+                  alt="CineBook"
+                  className="w-[112%] h-[112%] max-w-none object-cover"
+                />
+              </div>
+              <span className="text-2xl font-bold text-white hidden sm:inline tracking-tight ml-1">
+                Cine<span className="text-[#e63946]">Book</span>
+              </span>
+            </Link>
 
-          {/* Location Pill (desktop) */}
-          <button
-            onClick={() => setShowLocationModal(true)}
-            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 hover:border-[#ffd60a]/40 transition-all text-xs text-gray-300 hover:text-[#ffd60a] shrink-0 bg-white/5"
-          >
-            <MapPin className="w-3.5 h-3.5 text-[#e63946]" />
-            <span className="max-w-[120px] truncate">
-              {selectedCity || 'Set Location'}
-            </span>
-            <ChevronDown className="w-3 h-3 text-gray-500" />
-          </button>
+            {/* Location Pill (desktop) */}
+            <button
+              onClick={() => setShowLocationModal(true)}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 hover:border-[#ffd60a]/40 transition-all text-xs text-gray-300 hover:text-[#ffd60a] shrink-0 bg-white/5"
+            >
+              <MapPin className="w-3.5 h-3.5 text-[#e63946]" />
+              <span className="max-w-[100px] truncate">
+                {selectedCity || 'Set Location'}
+              </span>
+              <ChevronDown className="w-3 h-3 text-gray-500" />
+            </button>
+          </div>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-2 relative">
+          {/* Center — Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-1 mx-4">
             {navItems.map((item) => {
               const active = isActive(item.path);
               return (
                 <Link 
                   key={item.path} 
                   to={item.path} 
-                  className="relative px-3 py-2 text-sm font-medium rounded-lg hover:bg-white/5 transition-colors focus:outline-none"
+                  className="relative px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-white/5 transition-colors focus:outline-none"
                 >
                   {active && (
                     <motion.div
@@ -134,7 +153,7 @@ export default function Navbar() {
             })}
 
             {isAdmin && (
-              <Link to="/admin" className="relative px-3 py-2 text-sm font-medium rounded-lg hover:bg-white/5 transition-colors ml-2 focus:outline-none">
+              <Link to="/admin" className="relative px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-white/5 transition-colors ml-1 focus:outline-none">
                 {isActive('/admin') && (
                   <motion.div
                     layoutId="nav-indicator"
@@ -160,55 +179,57 @@ export default function Navbar() {
             )}
           </nav>
 
-          {/* Desktop Auth */}
-          <div className="hidden md:flex items-center gap-4">
-            {isLoggedIn ? (
-              <>
-                <Link
-                  to="/dashboard"
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all"
-                >
-                  <Ticket className="w-4 h-4" />
-                  <span>My Bookings</span>
-                </Link>
-                <div className="flex items-center gap-2 px-3 py-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#e63946] to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-sm border border-white/10">
-                    {profile?.fullName?.[0]?.toUpperCase() || 'U'}
+          {/* Right — Auth + Mobile Hamburger */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="hidden md:flex items-center gap-2">
+              {isLoggedIn ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                  >
+                    <Ticket className="w-4 h-4" />
+                    <span className="hidden lg:inline">My Bookings</span>
+                  </Link>
+                  <div className="flex items-center gap-2 px-2 py-1.5">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#e63946] to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-sm border border-white/10">
+                      {profile?.fullName?.[0]?.toUpperCase() || 'U'}
+                    </div>
+                    <span className="text-sm text-white font-medium drop-shadow-sm hidden lg:inline">
+                      {profile?.fullName?.split(' ')[0]}
+                    </span>
                   </div>
-                  <span className="text-sm text-white font-medium drop-shadow-sm">
-                    {profile?.fullName?.split(' ')[0]}
-                  </span>
-                </div>
-                <button
-                  onClick={handleSignOut}
-                  className="btn-ghost flex items-center gap-1.5 text-sm !px-3 !py-2"
-                >
-                  <LogOut className="w-4 h-4" /> Sign Out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" className="btn-ghost text-sm !px-4">
-                  Sign In
-                </Link>
-                <Link to="/signup" className="btn-primary text-sm !px-4">
-                  Sign Up
-                </Link>
-              </>
-            )}
-          </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="btn-ghost flex items-center gap-1.5 text-sm !px-3 !py-1.5"
+                  >
+                    <LogOut className="w-4 h-4" /> <span className="hidden lg:inline">Sign Out</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" className="btn-ghost text-sm !px-4">
+                    Sign In
+                  </Link>
+                  <Link to="/signup" className="btn-primary text-sm !px-4">
+                    Sign Up
+                  </Link>
+                </>
+              )}
+            </div>
 
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden p-2 text-gray-400 hover:text-white transition-colors focus:outline-none"
-            onClick={() => setMobileOpen(!mobileOpen)}
-          >
-            {mobileOpen ? (
-              <X className="w-6 h-6" />
-            ) : (
-              <Menu className="w-6 h-6" />
-            )}
-          </button>
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden p-2 text-gray-400 hover:text-white transition-colors focus:outline-none"
+              onClick={() => setMobileOpen(!mobileOpen)}
+            >
+              {mobileOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
