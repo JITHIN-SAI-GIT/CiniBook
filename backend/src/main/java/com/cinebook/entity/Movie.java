@@ -7,11 +7,11 @@ import java.util.List;
 
 @Entity
 @Table(name = "movies", indexes = {
-    @Index(name = "idx_movie_tmdb_id", columnList = "tmdbId"),
-    @Index(name = "idx_movie_is_ott", columnList = "isOtt"),
-    @Index(name = "idx_movie_is_trending", columnList = "isTrending"),
+    @Index(name = "idx_movie_tmdb_id", columnList = "tmdb_id"),
+    @Index(name = "idx_movie_is_ott", columnList = "is_ott"),
+    @Index(name = "idx_movie_is_trending", columnList = "is_trending"),
     @Index(name = "idx_movie_language", columnList = "language"),
-    @Index(name = "idx_movie_storage_provider", columnList = "storageProvider")
+    @Index(name = "idx_movie_storage_provider", columnList = "storage_provider")
 })
 @Data
 @NoArgsConstructor
