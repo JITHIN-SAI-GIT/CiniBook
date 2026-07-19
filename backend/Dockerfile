@@ -20,4 +20,4 @@ EXPOSE $PORT
 # Enforce the render profile for production deployments
 ENV SPRING_PROFILES_ACTIVE=render
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xmx300m", "-Xms150m", "-jar", "app.jar"]

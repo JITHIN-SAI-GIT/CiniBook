@@ -10,7 +10,7 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}")
+    @Value("${jwt.secret:defaultSecretKeyThatIsAtLeast32BytesLongForHS256CineBook!}")
     private String jwtSecret;
 
     @Value("${jwt.expiration}")
