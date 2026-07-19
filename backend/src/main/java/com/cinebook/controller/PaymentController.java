@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.json.JSONObject;
+import lombok.RequiredArgsConstructor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/payments")
-@CrossOrigin(origins = "http://localhost:5173")
+@RequiredArgsConstructor
 public class PaymentController {
 
     @Value("${RAZORPAY_KEY_ID:YOUR_RAZORPAY_KEY_HERE}")

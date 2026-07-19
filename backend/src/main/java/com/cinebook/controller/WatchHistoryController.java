@@ -18,7 +18,6 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/watch-history")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class WatchHistoryController {
 
     private final WatchHistoryRepository watchHistoryRepository;

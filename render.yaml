@@ -9,6 +9,8 @@ services:
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
     envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: aiven
       - key: PORT
         value: 8080
       - key: CORS_ALLOWED_ORIGINS
