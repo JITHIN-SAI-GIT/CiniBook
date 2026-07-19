@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
-import { moviesApi, watchHistoryApi } from '../lib/api';
+import { api, moviesApi, watchHistoryApi } from '../lib/api';
 import { X, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 
 import { formatBytes } from '../lib/utils';
@@ -87,146 +87,116 @@ export const DownloadProvider = ({ children }) => {
         );
       }
 
-      const xhr = new XMLHttpRequest();
-      xhr.open('GET', streamUrl, true);
-      xhr.responseType = 'blob';
+      // Use the authenticated api instance for download.
+      // streamUrl is a relative path like "/api/movies/google-stream/xyz" or a full B2 pre-signed URL.
+      // For relative URLs, api.get() will prepend the base URL and include the JWT token.
+      // For absolute URLs (B2 pre-signed), axios will use them directly.
+      const isRelativeUrl = streamUrl.startsWith('/');
 
-      let startTime = Date.now();
-      let lastTime = startTime;
-      let lastLoaded = 0;
+      const downloadStartTime = Date.now();
 
-      xhr.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const currentTime = Date.now();
-          const timeDiff = (currentTime - lastTime) / 1000;
+      const downloadResponse = await (isRelativeUrl
+        ? // Relative URL → go through our authenticated axios instance
+          api.get(streamUrl, {
+            responseType: 'blob',
+            onDownloadProgress: (progressEvent) => {
+              if (progressEvent.total) {
+                const currentTime = Date.now();
+                const elapsed = (currentTime - downloadStartTime) / 1000;
+                const bytesPerSec = elapsed > 0 ? progressEvent.loaded / elapsed : 0;
+                const remainingBytes = progressEvent.total - progressEvent.loaded;
+                const eta = bytesPerSec > 0 ? remainingBytes / bytesPerSec : 0;
 
-          const loaded = event.loaded;
-          const total = event.total;
+                setDownload((prev) => {
+                  if (!prev || prev.movieId !== movie.id) return prev;
+                  return {
+                    ...prev,
+                    percent: Math.round((progressEvent.loaded / progressEvent.total) * 100),
+                    speed: Math.round(bytesPerSec / 1024),
+                    remaining: Math.round(eta),
+                    loadedBytes: progressEvent.loaded,
+                    totalBytes: progressEvent.total,
+                  };
+                });
+              }
+            },
+          })
+        : // Absolute URL (B2 pre-signed) → use fetch directly (no auth needed for pre-signed)
+          fetch(streamUrl).then(async (fetchRes) => {
+            if (!fetchRes.ok) throw new Error(`Download failed: ${fetchRes.status}`);
+            const blob = await fetchRes.blob();
+            return { data: blob, status: fetchRes.status };
+          })
+      );
 
-          const bytesSinceLast = loaded - lastLoaded;
-          const currentSpeed = timeDiff > 0 ? bytesSinceLast / timeDiff : 0;
-          const remainingBytes = total - loaded;
-          const eta = currentSpeed > 0 ? remainingBytes / currentSpeed : 0;
+      const blob = downloadResponse.data;
 
-          lastTime = currentTime;
-          lastLoaded = loaded;
+      // Trigger browser download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      const extension = movie.videoFileName
+        ? movie.videoFileName.split('.').pop()
+        : 'mp4';
+      link.download = `${movie.title.trim().replace(/\s+/g, '_')}_${movie.videoResolution || '1080p'}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
 
-          setDownload((prev) => {
-            if (!prev || prev.movieId !== movie.id) return prev;
-            return {
-              ...prev,
-              percent: Math.round((loaded / total) * 100),
-              speed: Math.round(currentSpeed / 1024), // in KB/s
-              remaining: Math.round(eta),
-              loadedBytes: loaded,
-              totalBytes: total,
-              xhr,
-            };
-          });
-        }
-      };
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          const blob = xhr.response;
-          const downloadUrl = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          const extension = movie.videoFileName
-            ? movie.videoFileName.split('.').pop()
-            : 'mp4';
-          link.download = `${movie.title.trim().replace(/\s+/g, '_')}_${movie.videoResolution || '1080p'}.${extension}`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(downloadUrl);
-
-          setDownload((prev) => {
-            if (!prev || prev.movieId !== movie.id) return prev;
-            return { ...prev, status: 'completed', percent: 100, xhr: null };
-          });
-          setDownloadStatuses((prev) => ({ ...prev, [movie.id]: 'completed' }));
-
-          if (profile?.id) {
-            watchHistoryApi
-              .saveProgress(profile.id, movie.id, 120)
-              .catch(console.error);
-          }
-
-          try {
-            const saved = localStorage.getItem('cinebook_downloaded_movies');
-            const ids = saved ? JSON.parse(saved) : [];
-            if (!ids.includes(movie.id)) {
-              ids.push(movie.id);
-              localStorage.setItem(
-                'cinebook_downloaded_movies',
-                JSON.stringify(ids)
-              );
-            }
-          } catch (e) {
-            console.error(e);
-          }
-
-          toast(`Download completed: ${movie.title}`, 'success');
-        } else {
-          handleDownloadError(movie, xhr.status);
-        }
-      };
-
-      const handleDownloadError = (movieObj, status) => {
-        console.error(`Download failed with status ${status}`);
-        const currentProvider =
-          forceProvider || movieObj.storageProvider || 'backblaze_b2';
-        const fallback =
-          currentProvider === 'backblaze_b2' ? 'google_drive' : 'backblaze_b2';
-
-        if (!forceProvider) {
-          toast(
-            `Main server failed (${status}). Trying backup cloud server...`,
-            'warning'
-          );
-          startDownload(movieObj, fallback);
-        } else {
-          setDownload((prev) => {
-            if (!prev || prev.movieId !== movieObj.id) return prev;
-            return { ...prev, status: 'failed', xhr: null };
-          });
-          setDownloadStatuses((prev) => ({ ...prev, [movieObj.id]: 'failed' }));
-          toast(
-            `All storage servers failed. Please check internet connection.`,
-            'error'
-          );
-        }
-      };
-
-      xhr.onerror = () => {
-        toast(
-          `Programmatic download failed. Starting native fallback...`,
-          'info'
-        );
-        const link = document.createElement('a');
-        link.href = streamUrl;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        setDownload((prev) => {
-          if (!prev || prev.movieId !== movie.id) return prev;
-          return { ...prev, status: 'completed', percent: 100, xhr: null };
-        });
-        setDownloadStatuses((prev) => ({ ...prev, [movie.id]: 'completed' }));
-      };
-
-      xhr.send();
-    } catch (err) {
-      console.error(err);
       setDownload((prev) => {
         if (!prev || prev.movieId !== movie.id) return prev;
-        return { ...prev, status: 'failed', xhr: null };
+        return { ...prev, status: 'completed', percent: 100, xhr: null };
       });
-      setDownloadStatuses((prev) => ({ ...prev, [movie.id]: 'failed' }));
-      toast(`Download error: unable to retrieve download path`, 'error');
+      setDownloadStatuses((prev) => ({ ...prev, [movie.id]: 'completed' }));
+
+      if (profile?.id) {
+        watchHistoryApi
+          .saveProgress(profile.id, movie.id, 120)
+          .catch(console.error);
+      }
+
+      try {
+        const saved = localStorage.getItem('cinebook_downloaded_movies');
+        const ids = saved ? JSON.parse(saved) : [];
+        if (!ids.includes(movie.id)) {
+          ids.push(movie.id);
+          localStorage.setItem(
+            'cinebook_downloaded_movies',
+            JSON.stringify(ids)
+          );
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      toast(`Download completed: ${movie.title}`, 'success');
+    } catch (err) {
+      console.error('Download error:', err);
+
+      // Try fallback provider if this was the first attempt
+      const currentProvider =
+        forceProvider || movie.storageProvider || 'backblaze_b2';
+      const fallback =
+        currentProvider === 'backblaze_b2' ? 'google_drive' : 'backblaze_b2';
+
+      if (!forceProvider) {
+        toast(
+          `Primary download failed. Trying backup cloud server...`,
+          'warning'
+        );
+        startDownload(movie, fallback);
+      } else {
+        setDownload((prev) => {
+          if (!prev || prev.movieId !== movie.id) return prev;
+          return { ...prev, status: 'failed', xhr: null };
+        });
+        setDownloadStatuses((prev) => ({ ...prev, [movie.id]: 'failed' }));
+        toast(
+          `Download failed from all servers. Please check your connection.`,
+          'error'
+        );
+      }
     }
   };
 

@@ -97,6 +97,24 @@ public class StorageManager {
         throw new RuntimeException("All configured storage providers failed or are full. Details: " + String.join(", ", failedProviders));
     }
 
+    public UploadResult uploadFile(MultipartFile file, String folderAndName, String forceProviderId) throws Exception {
+        if (forceProviderId != null && !forceProviderId.isBlank()) {
+            StorageProvider provider = getProvider(forceProviderId);
+            if (provider.isConfigured() && provider.healthCheck()) {
+                long remaining = provider.checkRemainingStorage();
+                if (remaining >= file.getSize()) {
+                    log.info("Attempting server-side upload to forced provider: {}", provider.getProviderId());
+                    return provider.uploadFile(file, folderAndName);
+                } else {
+                    throw new RuntimeException("Forced provider " + forceProviderId + " has insufficient storage. Remaining: " + remaining);
+                }
+            } else {
+                throw new RuntimeException("Forced provider " + forceProviderId + " is not configured or unhealthy.");
+            }
+        }
+        return uploadFile(file, folderAndName);
+    }
+
     public InputStream downloadFile(String providerId, String fileId) throws Exception {
         return getProvider(providerId).downloadFile(fileId);
     }

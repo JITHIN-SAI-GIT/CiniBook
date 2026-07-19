@@ -16,18 +16,22 @@ echo.
 REM --- Check MySQL ---
 echo [1/3] Checking MySQL...
 sc query MySQL80 >nul 2>&1
-if %errorlevel%==0 (
+if %errorlevel% equ 0 (
     net start MySQL80 >nul 2>&1
     echo  MySQL: Running
-) else (
-    sc query MySQL57 >nul 2>&1
-    if %errorlevel%==0 (
-        net start MySQL57 >nul 2>&1
-        echo  MySQL: Running (MySQL57)
-    ) else (
-        echo  WARNING: Could not detect MySQL service. Make sure MySQL is running.
-    )
+    goto mysql_done
 )
+
+sc query MySQL57 >nul 2>&1
+if %errorlevel% equ 0 (
+    net start MySQL57 >nul 2>&1
+    echo  MySQL: Running (MySQL57)
+    goto mysql_done
+)
+
+echo  WARNING: Could not detect MySQL service. Make sure MySQL is running.
+
+:mysql_done
 
 REM --- Download mvnw if needed ---
 if not exist "%USERPROFILE%\.m2\wrapper\dists" mkdir "%USERPROFILE%\.m2\wrapper\dists"

@@ -6,7 +6,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "movies")
+@Table(name = "movies", indexes = {
+    @Index(name = "idx_movie_tmdb_id", columnList = "tmdbId"),
+    @Index(name = "idx_movie_is_ott", columnList = "isOtt"),
+    @Index(name = "idx_movie_is_trending", columnList = "isTrending"),
+    @Index(name = "idx_movie_language", columnList = "language"),
+    @Index(name = "idx_movie_storage_provider", columnList = "storageProvider")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

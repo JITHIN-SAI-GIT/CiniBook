@@ -122,12 +122,13 @@ public class MovieController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, Object>> uploadVideo(
             @PathVariable Long id,
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "provider", required = false) String provider) {
 
-        log.info("Admin video upload request for movieId={}, fileName={}, size={} bytes",
-                id, file.getOriginalFilename(), file.getSize());
+        log.info("Admin video upload request for movieId={}, fileName={}, size={} bytes, provider={}",
+                id, file.getOriginalFilename(), file.getSize(), provider);
 
-        Map<String, Object> result = movieService.uploadVideo(id, file);
+        Map<String, Object> result = movieService.uploadVideo(id, file, provider);
         return ResponseEntity.ok(result);
     }
 

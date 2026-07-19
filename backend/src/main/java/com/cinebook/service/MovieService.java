@@ -232,7 +232,7 @@ public class MovieService {
      * @param file    The multipart video file.
      * @return Map with upload result metadata.
      */
-    public Map<String, Object> uploadVideo(Long movieId, MultipartFile file) {
+    public Map<String, Object> uploadVideo(Long movieId, MultipartFile file, String provider) {
         Movie movie = movieRepository.findById(movieId)
                 .orElseThrow(() -> new RuntimeException("Movie not found: " + movieId));
 
@@ -251,7 +251,7 @@ public class MovieService {
         String path = "movies/" + cleanTitle + "/" + cleanTitle + "-" + java.util.UUID.randomUUID().toString().substring(0, 8) + getExtension(cleanFilename);
 
         try {
-            UploadResult result = storageManager.uploadFile(file, path);
+            UploadResult result = storageManager.uploadFile(file, path, provider);
 
             // Persist metadata to DB
             movie.setVideoFileName(result.getProviderFileId());
@@ -307,9 +307,8 @@ public class MovieService {
                 com.cinebook.service.storage.StorageProvider provider = storageManager.getProvider(primaryProvider);
                 if (provider.isConfigured()) {
                     String downloadUrl = provider.generateDownloadUrl(movie.getVideoFileName());
-                    String finalUrl = downloadUrl.startsWith("/") ? "https://cinebook-backend-6e0a.onrender.com" + downloadUrl : downloadUrl;
                     return Map.of(
-                        "streamUrl", finalUrl,
+                        "streamUrl", downloadUrl,
                         "source", primaryProvider,
                         "movieId", movieId,
                         "title", movie.getTitle(),
@@ -327,10 +326,9 @@ public class MovieService {
                     com.cinebook.service.storage.StorageProvider provider = storageManager.getProvider(fallbackProvider);
                     if (provider.isConfigured()) {
                         String downloadUrl = provider.generateDownloadUrl(movie.getVideoFileName());
-                        String finalUrl = downloadUrl.startsWith("/") ? "https://cinebook-backend-6e0a.onrender.com" + downloadUrl : downloadUrl;
                         log.info("Successfully fell back to provider {} for movieId={}", fallbackProvider, movieId);
                         return Map.of(
-                            "streamUrl", finalUrl,
+                            "streamUrl", downloadUrl,
                             "source", fallbackProvider,
                             "movieId", movieId,
                             "title", movie.getTitle(),

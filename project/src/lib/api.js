@@ -74,239 +74,39 @@ export const moviesApi = {
       params: { provider },
     }),
 
-  /** Upload a video with chunked resumable upload (Google Drive) or single PUT with retry (Backblaze). Admin only. */
+  /** Upload a video through the backend (server-side upload to cloud). Admin only. */
   uploadVideo: async (id, file, provider, onProgress) => {
-    // 1. Get presigned/resumable upload URL from backend
-    const res = await api.get(`/movies/${id}/presigned-upload-url`, {
-      params: {
-        fileName: file.name,
-        contentType: file.type,
-        fileSize: file.size,
-        provider,
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const params = provider ? { provider } : {};
+
+    const uploadStartTime = Date.now();
+
+    const res = await api.post(`/movies/${id}/video`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      params,
+      timeout: 0, // No timeout for large uploads
+      onUploadProgress: (progressEvent) => {
+        if (!progressEvent.total) return;
+        const elapsed = (Date.now() - uploadStartTime) / 1000;
+        const bytesPerSec = elapsed > 0 ? progressEvent.loaded / elapsed : 0;
+        const remaining = bytesPerSec > 0 ? (progressEvent.total - progressEvent.loaded) / bytesPerSec : 0;
+
+        onProgress?.({
+          percent: Math.min(Math.round((progressEvent.loaded / progressEvent.total) * 100), 100),
+          speed: Math.round(bytesPerSec / 1024),
+          remaining: Math.round(remaining),
+          status: 'uploading',
+          provider: provider || 'auto',
+          retryCount: 0,
+        });
       },
     });
-    const { uploadUrl, objectKey, provider: resolvedProvider } = res.data;
 
-    // Enhanced progress helper
-    const reportProgress = (percent, speed, remaining, status, retryCount = 0) => {
-      onProgress?.({
-        percent: Math.min(Math.round(percent), 100),
-        speed: Math.round(speed),
-        remaining: Math.round(remaining),
-        status,
-        provider: resolvedProvider,
-        retryCount,
-      });
-    };
+    onProgress?.({ percent: 100, speed: 0, remaining: 0, status: 'completed', provider: provider || 'auto', retryCount: 0 });
 
-    // ── Google Drive: Chunked Resumable Upload ──
-    if (resolvedProvider === 'google_drive') {
-      const CHUNK_SIZE = 5 * 1024 * 1024; // 5 MB (must be multiple of 256 KB)
-      const totalSize = file.size;
-      let bytesSent = 0;
-      const uploadStartTime = Date.now();
-
-      while (bytesSent < totalSize) {
-        const chunkEnd = Math.min(bytesSent + CHUNK_SIZE, totalSize);
-        const chunk = file.slice(bytesSent, chunkEnd);
-        const contentRange = `bytes ${bytesSent}-${chunkEnd - 1}/${totalSize}`;
-
-        let chunkUploaded = false;
-        let retryCount = 0;
-        const maxRetries = 5;
-
-        while (!chunkUploaded && retryCount <= maxRetries) {
-          try {
-            if (retryCount > 0) {
-              reportProgress((bytesSent / totalSize) * 100, 0, 0, 'retrying', retryCount);
-              // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-              await new Promise(r => setTimeout(r, Math.pow(2, retryCount - 1) * 1000));
-
-              // Query Google to find last committed byte (resume point)
-              try {
-                const statusRes = await fetch(uploadUrl, {
-                  method: 'PUT',
-                  headers: { 'Content-Range': `bytes */${totalSize}` },
-                });
-                if (statusRes.status === 308) {
-                  const rangeHeader = statusRes.headers.get('Range');
-                  if (rangeHeader && rangeHeader.startsWith('bytes=0-')) {
-                    const serverReceived = parseInt(rangeHeader.split('-')[1], 10) + 1;
-                    if (serverReceived > bytesSent) {
-                      bytesSent = serverReceived;
-                      // Recalculate chunk boundaries
-                      break; // Break inner retry loop, outer while will recalculate
-                    }
-                  }
-                } else if (statusRes.status === 200 || statusRes.status === 201) {
-                  // Upload was already completed
-                  const responseData = await statusRes.json();
-                  const finalKey = responseData?.id || objectKey;
-                  await api.post(`/movies/${id}/confirm-upload`, {
-                    objectKey: finalKey,
-                    fileSize: file.size,
-                    contentType: file.type,
-                    provider: resolvedProvider,
-                  });
-                  reportProgress(100, 0, 0, 'completed');
-                  return { success: true, fileName: finalKey, size: file.size, mimeType: file.type };
-                }
-              } catch (queryErr) {
-                console.warn('Failed to query upload status, continuing retry:', queryErr);
-              }
-            }
-
-            const chunkResponse = await fetch(uploadUrl, {
-              method: 'PUT',
-              headers: {
-                'Content-Range': contentRange,
-                'Content-Length': String(chunkEnd - bytesSent),
-              },
-              body: chunk,
-            });
-
-            if (chunkResponse.status === 200 || chunkResponse.status === 201) {
-              // Upload complete
-              const responseData = await chunkResponse.json();
-              const finalKey = responseData?.id || objectKey;
-
-              await api.post(`/movies/${id}/confirm-upload`, {
-                objectKey: finalKey,
-                fileSize: file.size,
-                contentType: file.type,
-                provider: resolvedProvider,
-              });
-
-              reportProgress(100, 0, 0, 'completed');
-              return { success: true, fileName: finalKey, size: file.size, mimeType: file.type };
-
-            } else if (chunkResponse.status === 308) {
-              // Chunk accepted, continue
-              const rangeHeader = chunkResponse.headers.get('Range');
-              if (rangeHeader && rangeHeader.startsWith('bytes=0-')) {
-                bytesSent = parseInt(rangeHeader.split('-')[1], 10) + 1;
-              } else {
-                bytesSent = chunkEnd;
-              }
-              chunkUploaded = true;
-
-              // Calculate progress
-              const elapsed = (Date.now() - uploadStartTime) / 1000;
-              const bytesPerSec = elapsed > 0 ? bytesSent / elapsed : 0;
-              const remaining = bytesPerSec > 0 ? (totalSize - bytesSent) / bytesPerSec : 0;
-              reportProgress((bytesSent / totalSize) * 100, bytesPerSec / 1024, remaining, 'uploading');
-
-            } else if (chunkResponse.status >= 500) {
-              retryCount++;
-              if (retryCount > maxRetries) {
-                throw new Error(`Google Drive upload failed with server error ${chunkResponse.status} after ${maxRetries} retries`);
-              }
-            } else {
-              const errorText = await chunkResponse.text().catch(() => '');
-              throw new Error(`Google Drive chunk upload failed: ${chunkResponse.status} ${errorText}`);
-            }
-          } catch (err) {
-            if (err.name === 'TypeError' || err.message === 'Failed to fetch') {
-              // Network error
-              retryCount++;
-              if (retryCount > maxRetries) {
-                throw new Error('Network error during Google Drive upload. Please check your connection and try again.');
-              }
-            } else if (!err.message?.includes('retries')) {
-              throw err;
-            }
-          }
-        }
-      }
-      throw new Error('Google Drive upload ended without completion.');
-    }
-
-    // ── Backblaze / Other: Single PUT with retry ──
-    return new Promise((resolve, reject) => {
-      const maxRetries = 3;
-      let retryCount = 0;
-
-      const attemptUpload = () => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', uploadUrl);
-        xhr.setRequestHeader('Content-Type', file.type);
-
-        const uploadStartTime = Date.now();
-
-        xhr.upload.onprogress = (e) => {
-          if (!e.lengthComputable) return;
-          const elapsed = (Date.now() - uploadStartTime) / 1000;
-          const bytesPerSec = elapsed > 0 ? e.loaded / elapsed : 0;
-          const remaining = bytesPerSec > 0 ? (e.total - e.loaded) / bytesPerSec : 0;
-
-          reportProgress(
-            (e.loaded / e.total) * 100,
-            bytesPerSec / 1024,
-            remaining,
-            'uploading'
-          );
-        };
-
-        xhr.onload = async () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              let finalKey = objectKey;
-
-              if (resolvedProvider === 'google_drive') {
-                try {
-                  const responseData = JSON.parse(xhr.responseText);
-                  if (responseData?.id) finalKey = responseData.id;
-                } catch (parseErr) {
-                  console.error('Failed to parse upload response:', parseErr);
-                }
-              }
-
-              await api.post(`/movies/${id}/confirm-upload`, {
-                objectKey: finalKey,
-                fileSize: file.size,
-                contentType: file.type,
-                provider: resolvedProvider,
-              });
-
-              reportProgress(100, 0, 0, 'completed');
-              resolve({ success: true, fileName: finalKey, size: file.size, mimeType: file.type });
-            } catch (confirmErr) {
-              reject(new Error(confirmErr.response?.data?.message || 'Failed to confirm upload on backend'));
-            }
-          } else if (xhr.status >= 500 && retryCount < maxRetries) {
-            retryCount++;
-            reportProgress(0, 0, 0, 'retrying', retryCount);
-            setTimeout(attemptUpload, Math.pow(2, retryCount - 1) * 1000);
-          } else {
-            reject(new Error(`Upload failed with status ${xhr.status}`));
-          }
-        };
-
-        xhr.onerror = () => {
-          if (retryCount < maxRetries) {
-            retryCount++;
-            reportProgress(0, 0, 0, 'retrying', retryCount);
-            setTimeout(attemptUpload, Math.pow(2, retryCount - 1) * 1000);
-          } else {
-            reject(new Error('Network error during upload. Please check your connection.'));
-          }
-        };
-
-        xhr.ontimeout = () => {
-          if (retryCount < maxRetries) {
-            retryCount++;
-            reportProgress(0, 0, 0, 'retrying', retryCount);
-            setTimeout(attemptUpload, Math.pow(2, retryCount - 1) * 1000);
-          } else {
-            reject(new Error('Upload timed out after multiple retries.'));
-          }
-        };
-
-        xhr.send(file);
-      };
-
-      attemptUpload();
-    });
+    return { success: true, ...res.data };
   },
 
   /** Delete a movie's video. Admin only. */

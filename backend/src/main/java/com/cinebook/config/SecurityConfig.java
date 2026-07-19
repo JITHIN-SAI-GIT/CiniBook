@@ -35,7 +35,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/showtimes/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/tmdb/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/me").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/movies/tmdb/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 // WebSocket endpoint
                 .requestMatchers("/ws-chat/**").permitAll()
                 // Stream endpoint: requires authentication (any logged-in user)
