@@ -17,4 +17,7 @@ COPY --from=build /app/target/cinebook-backend-1.0.0.jar app.jar
 # Expose the dynamic port
 EXPOSE $PORT
 
+# Enforce the render profile for production deployments
+ENV SPRING_PROFILES_ACTIVE=render
+
 ENTRYPOINT ["java", "-jar", "app.jar"]
