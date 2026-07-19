@@ -21,7 +21,7 @@ EXPOSE $PORT
 # This prevents us from having to commit binary secrets (client-truststore.jks) to Git.
 # Render Secret Files should mount the Aiven ca.pem to /etc/secrets/ca.pem
 RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'export BASE_URL="jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:cinebook}"' >> /app/start.sh && \
+    echo 'export BASE_URL="jdbc:mysql://\${DB_HOST:localhost}:\${DB_PORT:3306}/\${DB_NAME:cinebook}"' >> /app/start.sh && \
     echo 'if [ -f "/etc/secrets/ca.pem" ]; then' >> /app/start.sh && \
     echo '  echo "Aiven CA certificate found. Generating truststore..."' >> /app/start.sh && \
     echo '  keytool -import -alias aiven -file /etc/secrets/ca.pem -keystore /app/truststore.jks -storepass secret -noprompt' >> /app/start.sh && \
