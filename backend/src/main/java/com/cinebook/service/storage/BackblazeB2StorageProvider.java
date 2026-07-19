@@ -94,19 +94,6 @@ public class BackblazeB2StorageProvider implements StorageProvider {
                 log.info("Backblaze B2 S3 Client initialized successfully for bucket: {}", bucketName);
                 
                 configureBucketCors();
-                debugListAllBucketsAndFiles();
-
-                try {
-                    ListObjectsV2Request listReq = ListObjectsV2Request.builder().bucket(bucketName).build();
-                    ListObjectsV2Response listRes = s3Client.listObjectsV2(listReq);
-                    log.info("Listing objects in B2 bucket {}:", bucketName);
-                    for (S3Object obj : listRes.contents()) {
-                        log.info(" - Key: {}, Size: {} bytes", obj.key(), obj.size());
-                    }
-                } catch (Exception e) {
-                    log.error("Failed to list B2 bucket objects during startup: {}", e.getMessage());
-                }
-
             } catch (Exception e) {
                 log.error("Failed to initialize Backblaze B2 S3 Client: {}", e.getMessage(), e);
             }

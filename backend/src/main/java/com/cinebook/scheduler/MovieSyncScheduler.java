@@ -16,14 +16,21 @@ public class MovieSyncScheduler {
     private final TMDBService tmdbService;
     private final MovieService movieService;
 
-    // Run at startup
-    @PostConstruct
+    // Run at startup, but AFTER Tomcat binds to the port (ApplicationReadyEvent)
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     public void initSync() {
-        log.info("Running initial TMDB movie sync...");
-        tmdbService.syncNowPlayingMovies();
-        
-        log.info("Running post-startup B2 cloud sync...");
-        movieService.syncExistingB2Videos();
+        new Thread(() -> {
+            try {
+                log.info("Running initial TMDB movie sync in background...");
+                tmdbService.syncNowPlayingMovies();
+                
+                log.info("Running initial B2 cloud sync in background...");
+                movieService.syncExistingB2Videos();
+                log.info("Background startup sync completed successfully.");
+            } catch (Exception e) {
+                log.error("Background sync failed during startup: {}", e.getMessage(), e);
+            }
+        }, "Startup-Sync-Thread").start();
     }
 
     // Run every day at 2 AM
