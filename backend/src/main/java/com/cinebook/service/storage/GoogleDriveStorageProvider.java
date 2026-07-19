@@ -318,8 +318,9 @@ public class GoogleDriveStorageProvider implements StorageProvider {
             metadata = String.format("{\"name\":\"%s\"}", path);
         }
 
-        // Dynamically resolve origin from active HTTP request to support browser direct uploads
-        String origin = "http://localhost:5173";
+        // Dynamically resolve origin from active HTTP request to support browser direct uploads.
+        // Fallback to empty origin or backend root if no origin header is present.
+        String origin = "";
         try {
             org.springframework.web.context.request.RequestAttributes requestAttributes = 
                 org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();

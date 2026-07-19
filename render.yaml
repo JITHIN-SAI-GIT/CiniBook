@@ -9,8 +9,6 @@ services:
     dockerContext: ./backend
     dockerfilePath: ./backend/Dockerfile
     envVars:
-      - key: SPRING_PROFILES_ACTIVE
-        value: aiven
       - key: PORT
         value: 8080
       - key: CORS_ALLOWED_ORIGINS
@@ -47,18 +45,18 @@ services:
         sync: false
       - key: GOOGLE_DRIVE_FOLDER_ID
         sync: false
-      - key: AIVEN_HOST
+      - key: SPRING_PROFILES_ACTIVE
+        value: render
+      - key: DB_HOST
         sync: false
-      - key: AIVEN_PORT
+      - key: DB_PORT
         sync: false
-      - key: AIVEN_DB_NAME
+      - key: DB_NAME
         sync: false
-      - key: AIVEN_DB_USER
+      - key: DB_USER
         sync: false
-      - key: AIVEN_DB_PASSWORD
+      - key: DB_PASSWORD
         sync: false
-      - key: AIVEN_CA_CERT_PATH
-        value: /app/truststore.jks
 
   # ─── FRONTEND: React + Vite (Static Site) ───
   - type: web
