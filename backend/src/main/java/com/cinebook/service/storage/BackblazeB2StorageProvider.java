@@ -92,8 +92,9 @@ public class BackblazeB2StorageProvider implements StorageProvider {
                         .region(b2Region)
                         .build();
                 log.info("Backblaze B2 S3 Client initialized successfully for bucket: {}", bucketName);
-                
-                configureBucketCors();
+                new Thread(() -> {
+                    configureBucketCors();
+                }, "B2-CORS-Init-Thread").start();
             } catch (Exception e) {
                 log.error("Failed to initialize Backblaze B2 S3 Client: {}", e.getMessage(), e);
             }
