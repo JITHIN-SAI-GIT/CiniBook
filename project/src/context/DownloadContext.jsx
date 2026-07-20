@@ -124,7 +124,40 @@ export const DownloadProvider = ({ children }) => {
         : // Absolute URL (B2 pre-signed) → use fetch directly (no auth needed for pre-signed)
           fetch(streamUrl).then(async (fetchRes) => {
             if (!fetchRes.ok) throw new Error(`Download failed: ${fetchRes.status}`);
-            const blob = await fetchRes.blob();
+            
+            const total = parseInt(fetchRes.headers.get('content-length') || movie.fileSize || '0', 10);
+            let loaded = 0;
+            const reader = fetchRes.body.getReader();
+            const chunks = [];
+            
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              loaded += value.byteLength;
+              
+              if (total > 0) {
+                 const currentTime = Date.now();
+                 const elapsed = (currentTime - downloadStartTime) / 1000;
+                 const bytesPerSec = elapsed > 0 ? loaded / elapsed : 0;
+                 const remainingBytes = total - loaded;
+                 const eta = bytesPerSec > 0 ? remainingBytes / bytesPerSec : 0;
+                 
+                 setDownload((prev) => {
+                   if (!prev || prev.movieId !== movie.id) return prev;
+                   return {
+                     ...prev,
+                     percent: Math.round((loaded / total) * 100),
+                     speed: Math.round(bytesPerSec / 1024),
+                     remaining: Math.round(eta),
+                     loadedBytes: loaded,
+                     totalBytes: total,
+                   };
+                 });
+              }
+            }
+            
+            const blob = new Blob(chunks);
             return { data: blob, status: fetchRes.status };
           })
       );

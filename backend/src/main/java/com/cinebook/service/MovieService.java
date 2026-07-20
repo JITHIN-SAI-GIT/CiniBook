@@ -440,6 +440,10 @@ public class MovieService {
                 }
                 
                 if (matchedMovie != null) {
+                    if ("google_drive".equals(matchedMovie.getStorageProvider())) {
+                        log.info("Skipping B2 sync for movie '{}' because it's configured for Google Drive", matchedMovie.getTitle());
+                        continue;
+                    }
                     log.info("Matched B2 file '{}' to movie '{}' (ID: {})", key, matchedMovie.getTitle(), matchedMovie.getId());
                     matchedMovie.setStorageProvider("backblaze_b2");
                     matchedMovie.setVideoFileName(key);
