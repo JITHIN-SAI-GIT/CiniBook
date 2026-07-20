@@ -296,48 +296,49 @@ public class MovieService {
         Movie movie = movieRepository.findById(movieId)
                 .orElseThrow(() -> new RuntimeException("Movie not found: " + movieId));
 
-        // If a file is stored, generate a streaming URL
+        // 1. Read Movie from database (done above)
+        // 2. Log important fields
+        log.info("Generating stream URL. movieId={}, DB storageProvider={}, DB videoFileName={}",
+                movie.getId(), movie.getStorageProvider(), movie.getVideoFileName());
+
         if (movie.getVideoFileName() != null && !movie.getVideoFileName().isBlank()) {
-            String primaryProvider = (forceProvider != null && !forceProvider.isBlank()) 
-                    ? forceProvider 
-                    : (movie.getStorageProvider() != null ? movie.getStorageProvider() : "backblaze_b2");
+            // 3. Ensure provider selection uses movie.storageProvider
+            String targetProvider = movie.getStorageProvider();
             
-            // Try primary first
+            if (targetProvider == null || targetProvider.isBlank()) {
+                log.warn("Movie {} has videoFileName but no storageProvider set. Cannot determine provider.", movieId);
+                throw new RuntimeException("Storage provider not set for movie " + movieId);
+            }
+            
+            // 6. Remove any fallback
+            // 4. If provider == google_drive: ONLY call GoogleDriveStorageProvider.
+            // 5. Never generate S3 URL for Google Drive files.
+            if (forceProvider != null && !forceProvider.isBlank() && !forceProvider.equals(targetProvider)) {
+                log.warn("Frontend requested forceProvider={} but movie is stored in {}. Ignoring forceProvider.",
+                        forceProvider, targetProvider);
+            }
+
             try {
-                com.cinebook.service.storage.StorageProvider provider = storageManager.getProvider(primaryProvider);
+                com.cinebook.service.storage.StorageProvider provider = storageManager.getProvider(targetProvider);
+                // 8. Log which StorageProvider implementation is actually executed.
+                log.info("Executing provider implementation: {}", provider.getClass().getName());
+
                 if (provider.isConfigured()) {
                     String downloadUrl = provider.generateDownloadUrl(movie.getVideoFileName());
                     return Map.of(
                         "streamUrl", downloadUrl,
-                        "source", primaryProvider,
+                        "source", targetProvider,
                         "movieId", movieId,
                         "title", movie.getTitle(),
-                        "cloudSwitching", (forceProvider != null && !forceProvider.isBlank() && !forceProvider.equals(movie.getStorageProvider()))
+                        "cloudSwitching", false
                     );
+                } else {
+                    log.error("Provider {} is not configured.", targetProvider);
+                    throw new RuntimeException("Storage provider not configured: " + targetProvider);
                 }
             } catch (Exception e) {
-                log.warn("Primary provider {} failed or unhealthy, attempting fallback for movieId={}...", primaryProvider, movieId);
-            }
-            
-            // Try fallback provider if not forced
-            if (forceProvider == null || forceProvider.isBlank()) {
-                String fallbackProvider = primaryProvider.equals("backblaze_b2") ? "google_drive" : "backblaze_b2";
-                try {
-                    com.cinebook.service.storage.StorageProvider provider = storageManager.getProvider(fallbackProvider);
-                    if (provider.isConfigured()) {
-                        String downloadUrl = provider.generateDownloadUrl(movie.getVideoFileName());
-                        log.info("Successfully fell back to provider {} for movieId={}", fallbackProvider, movieId);
-                        return Map.of(
-                            "streamUrl", downloadUrl,
-                            "source", fallbackProvider,
-                            "movieId", movieId,
-                            "title", movie.getTitle(),
-                            "cloudSwitching", true
-                        );
-                    }
-                } catch (Exception e) {
-                    log.error("Fallback provider {} also failed for movieId={}", fallbackProvider, movieId);
-                }
+                log.error("Provider {} failed to generate download URL for movieId={}: {}", targetProvider, movieId, e.getMessage(), e);
+                throw new RuntimeException("Failed to generate download URL: " + e.getMessage(), e);
             }
         }
 
