@@ -48,6 +48,7 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [stats, setStats] = useState(null);
+  const [storageStats, setStorageStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,13 +61,14 @@ export default function AdminPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [mv, th, st, bk, statsRes, vouchRes] = await Promise.all([
+      const [mv, th, st, bk, statsRes, vouchRes, storageRes] = await Promise.all([
         moviesApi.getAll(),
         theatresApi.getAll(),
         showtimesApi.getAll(),
         bookingsApi.getAll(),
         bookingsApi.getStats(),
         vouchersApi.getAll(),
+        moviesApi.getStorageStats(),
       ]);
       setMovies(mv.data || []);
       setTheatres(th.data || []);
@@ -74,6 +76,7 @@ export default function AdminPage() {
       setBookings(bk.data || []);
       setStats(statsRes.data);
       setVouchers(vouchRes.data || []);
+      setStorageStats(storageRes.data);
     } finally {
       setLoading(false);
     }
@@ -131,8 +134,8 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {tab === 'dashboard' && <DashboardTab stats={stats} movies={movies} />}
-        {tab === 'movies' && <MoviesTab movies={movies} onRefresh={fetchAll} />}
+        {tab === 'dashboard' && <DashboardTab stats={stats} movies={movies} storageStats={storageStats} />}
+        {tab === 'movies' && <MoviesTab movies={movies} onRefresh={fetchAll} storageStats={storageStats} />}
         {tab === 'theatres' && (
           <TheatresTab theatres={theatres} onRefresh={fetchAll} />
         )}
@@ -164,17 +167,9 @@ const formatBytes = (bytes) => {
   return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
 };
 
-function DashboardTab({ stats, movies }) {
+function DashboardTab({ stats, movies, storageStats }) {
   if (!stats) return null;
   const maxBookings = Math.max(...stats.last7Days.map((d) => d.count), 1);
-  const [storageStats, setStorageStats] = useState(null);
-
-  useEffect(() => {
-    moviesApi
-      .getStorageStats()
-      .then((r) => setStorageStats(r.data))
-      .catch(() => {});
-  }, []);
 
   const statCards = [
     {
@@ -409,7 +404,7 @@ function DashboardTab({ stats, movies }) {
   );
 }
 
-function MoviesTab({ movies, onRefresh }) {
+function MoviesTab({ movies, onRefresh, storageStats }) {
   const { toast } = useToast();
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -2396,9 +2391,8 @@ function VouchersTab({ vouchers, onRefresh }) {
 }
 
 // ---- OTT Management Tab Component ----
-function OttTab({ movies, onRefresh }) {
+function OttTab({ movies, onRefresh, storageStats }) {
   const { toast } = useToast();
-  const [storageStats, setStorageStats] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
 
@@ -2407,16 +2401,7 @@ function OttTab({ movies, onRefresh }) {
     setShowForm(true);
   };
 
-  const fetchStorageStats = useCallback(() => {
-    moviesApi
-      .getStorageStats()
-      .then((res) => setStorageStats(res.data))
-      .catch((err) => console.error('Failed to load storage statistics:', err));
-  }, []);
 
-  useEffect(() => {
-    fetchStorageStats();
-  }, [movies, fetchStorageStats]);
 
   const ottMovies = movies.filter((m) => m.isOtt);
 
