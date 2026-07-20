@@ -165,21 +165,21 @@ public class TMDBService {
 
     // --- New Proxy Methods for Frontend ---
 
-    @org.springframework.cache.annotation.Cacheable("tmdb_now_playing")
+    @org.springframework.cache.annotation.Cacheable(value = "tmdb_now_playing", key = "#page")
     public Map<String, Object> getNowPlaying(int page) {
         if (!isConfigured()) return Map.of("error", "TMDB API Key not configured");
         String url = BASE_URL + "/movie/now_playing?api_key=" + tmdbApiKey + "&language=en-US&page=" + page + "&region=IN";
         return restTemplate.getForObject(url, Map.class);
     }
 
-    @org.springframework.cache.annotation.Cacheable("tmdb_upcoming")
+    @org.springframework.cache.annotation.Cacheable(value = "tmdb_upcoming", key = "#page")
     public Map<String, Object> getUpcoming(int page) {
         if (!isConfigured()) return Map.of("error", "TMDB API Key not configured");
         String url = BASE_URL + "/movie/upcoming?api_key=" + tmdbApiKey + "&language=en-US&page=" + page + "&region=IN";
         return restTemplate.getForObject(url, Map.class);
     }
 
-    @org.springframework.cache.annotation.Cacheable("tmdb_popular")
+    @org.springframework.cache.annotation.Cacheable(value = "tmdb_popular", key = "#page")
     public Map<String, Object> getPopular(int page) {
         if (!isConfigured()) return Map.of("error", "TMDB API Key not configured");
         String url = BASE_URL + "/movie/popular?api_key=" + tmdbApiKey + "&language=en-US&page=" + page + "&region=IN";
@@ -193,7 +193,7 @@ public class TMDBService {
         return restTemplate.getForObject(url, Map.class);
     }
 
-    @org.springframework.cache.annotation.Cacheable("tmdb_top_rated")
+    @org.springframework.cache.annotation.Cacheable(value = "tmdb_top_rated", key = "#page")
     public Map<String, Object> getTopRated(int page) {
         if (!isConfigured()) return Map.of("error", "TMDB API Key not configured");
         String url = BASE_URL + "/movie/top_rated?api_key=" + tmdbApiKey + "&language=en-US&page=" + page + "&region=IN";
@@ -212,6 +212,51 @@ public class TMDBService {
         if (!isConfigured()) return Map.of("error", "TMDB API Key not configured");
         String url = BASE_URL + "/movie/" + tmdbId + "?api_key=" + tmdbApiKey + "&append_to_response=credits,videos,similar";
         return restTemplate.getForObject(url, Map.class);
+    }
+
+    /**
+     * Returns all homepage TMDB data in a single bundled response.
+     * This eliminates 5 separate API calls from the frontend, dramatically
+     * improving First Contentful Paint and reducing Time To Interactive.
+     * The method reuses individually cached TMDB calls so each category
+     * benefits from the Caffeine cache.
+     */
+    @org.springframework.cache.annotation.Cacheable("tmdb_homepage_bundle")
+    public Map<String, Object> getHomepageBundle() {
+        if (!isConfigured()) return Map.of("error", "TMDB API Key not configured");
+        
+        Map<String, Object> bundle = new java.util.HashMap<>();
+        try {
+            bundle.put("nowPlaying", getNowPlaying(1));
+        } catch (Exception e) {
+            log.warn("Homepage bundle: nowPlaying failed: {}", e.getMessage());
+            bundle.put("nowPlaying", Map.of("results", List.of()));
+        }
+        try {
+            bundle.put("trending", getTrending());
+        } catch (Exception e) {
+            log.warn("Homepage bundle: trending failed: {}", e.getMessage());
+            bundle.put("trending", Map.of("results", List.of()));
+        }
+        try {
+            bundle.put("popular", getPopular(1));
+        } catch (Exception e) {
+            log.warn("Homepage bundle: popular failed: {}", e.getMessage());
+            bundle.put("popular", Map.of("results", List.of()));
+        }
+        try {
+            bundle.put("upcoming", getUpcoming(1));
+        } catch (Exception e) {
+            log.warn("Homepage bundle: upcoming failed: {}", e.getMessage());
+            bundle.put("upcoming", Map.of("results", List.of()));
+        }
+        try {
+            bundle.put("topRated", getTopRated(1));
+        } catch (Exception e) {
+            log.warn("Homepage bundle: topRated failed: {}", e.getMessage());
+            bundle.put("topRated", Map.of("results", List.of()));
+        }
+        return bundle;
     }
 
     @Transactional

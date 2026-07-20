@@ -19,18 +19,32 @@ public class MovieSyncScheduler {
     // Run at startup, but AFTER Tomcat binds to the port (ApplicationReadyEvent)
     @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
     public void initSync() {
-        new Thread(() -> {
+        Thread syncThread = new Thread(() -> {
+            long start = System.currentTimeMillis();
+            
+            // TMDB sync — isolated so failure doesn't block B2 sync
             try {
                 log.info("Running initial TMDB movie sync in background...");
                 tmdbService.syncNowPlayingMovies();
-                
+                log.info("TMDB sync completed in {}ms", System.currentTimeMillis() - start);
+            } catch (Exception e) {
+                log.error("TMDB sync failed during startup (non-blocking): {}", e.getMessage());
+            }
+            
+            // B2 sync — independent of TMDB
+            try {
+                long b2Start = System.currentTimeMillis();
                 log.info("Running initial B2 cloud sync in background...");
                 movieService.syncExistingB2Videos();
-                log.info("Background startup sync completed successfully.");
+                log.info("B2 sync completed in {}ms", System.currentTimeMillis() - b2Start);
             } catch (Exception e) {
-                log.error("Background sync failed during startup: {}", e.getMessage(), e);
+                log.error("B2 sync failed during startup (non-blocking): {}", e.getMessage());
             }
-        }, "Startup-Sync-Thread").start();
+            
+            log.info("Background startup sync finished. Total time: {}ms", System.currentTimeMillis() - start);
+        }, "Startup-Sync-Thread");
+        syncThread.setDaemon(true);
+        syncThread.start();
     }
 
     // Run every day at 2 AM

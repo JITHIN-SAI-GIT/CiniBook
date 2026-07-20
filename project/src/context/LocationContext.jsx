@@ -67,7 +67,7 @@ export function LocationProvider({ children }) {
         if (state) setSelectedState(state);
         if (country) setSelectedCountry(country);
       } catch (err) {
-        console.warn('Reverse geocode failed', err);
+        // Reverse geocode failed — silent in production
       }
     },
     [setSelectedCity, setSelectedState, setSelectedCountry]

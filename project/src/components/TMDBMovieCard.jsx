@@ -1,8 +1,9 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Star } from 'lucide-react';
 import SafeImage from './SafeImage';
 
-export default function TMDBMovieCard({ movie, isUpcoming = false }) {
+const TMDBMovieCard = memo(function TMDBMovieCard({ movie, isUpcoming = false }) {
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : '';
@@ -73,4 +74,6 @@ export default function TMDBMovieCard({ movie, isUpcoming = false }) {
       </div>
     </Link>
   );
-}
+});
+
+export default TMDBMovieCard;

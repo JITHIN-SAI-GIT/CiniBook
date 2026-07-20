@@ -18,17 +18,25 @@ public class CorsConfig {
         if (allowedOriginsEnv != null && !allowedOriginsEnv.isEmpty()) {
             config.setAllowedOrigins(List.of(allowedOriginsEnv.split(",")));
         } else {
-            config.setAllowedOrigins(List.of("http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://localhost:3000"));
+            // Fallback: local dev + common Render production domains
+            config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:5174",
+                "http://localhost:3000",
+                "https://cinebook-frontend.onrender.com",
+                "https://cinibook.onrender.com"
+            ));
         }
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("Authorization"));
+        config.setExposedHeaders(List.of("Authorization", "Content-Disposition", "Cache-Control"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", config);
-        source.registerCorsConfiguration("/ws-chat/**", config);
+        // Register CORS for ALL paths (not just /api/**)
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 }

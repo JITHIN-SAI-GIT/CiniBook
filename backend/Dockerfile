@@ -20,4 +20,9 @@ EXPOSE $PORT
 # Enforce the render profile for production deployments
 ENV SPRING_PROFILES_ACTIVE=render
 
-ENTRYPOINT ["java", "-Xmx300m", "-Xms150m", "-jar", "app.jar"]
+ENTRYPOINT ["java", \
+  "-Xmx300m", "-Xms150m", \
+  "-XX:+UseSerialGC", \
+  "-XX:TieredStopAtLevel=1", \
+  "-Dspring.main.lazy-initialization=true", \
+  "-jar", "app.jar"]

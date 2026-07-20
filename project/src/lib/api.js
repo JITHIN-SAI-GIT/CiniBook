@@ -2,10 +2,52 @@ import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://cinebook-backend-6e0a.onrender.com/api';
 
+// ── Request timeout (15 seconds) ──────────────────────────────────────────────
+const REQUEST_TIMEOUT = 15000;
+
 export const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
+  timeout: REQUEST_TIMEOUT,
 });
+
+// ── In-flight request deduplication ───────────────────────────────────────────
+const inflightRequests = new Map();
+
+function deduplicatedGet(url, config = {}) {
+  const key = url + JSON.stringify(config.params || {});
+  if (inflightRequests.has(key)) {
+    return inflightRequests.get(key);
+  }
+  const promise = api.get(url, config).finally(() => {
+    inflightRequests.delete(key);
+  });
+  inflightRequests.set(key, promise);
+  return promise;
+}
+
+// ── Simple response cache (stale-while-revalidate) ────────────────────────────
+const responseCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function cachedGet(url, config = {}) {
+  const key = 'cache:' + url + JSON.stringify(config.params || {});
+  const cached = responseCache.get(key);
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return Promise.resolve(cached.response);
+  }
+
+  return deduplicatedGet(url, config).then((response) => {
+    responseCache.set(key, { response, timestamp: Date.now() });
+    // Evict old entries if cache grows too large
+    if (responseCache.size > 50) {
+      const oldest = responseCache.keys().next().value;
+      responseCache.delete(oldest);
+    }
+    return response;
+  });
+}
 
 // Attach JWT on every request
 api.interceptors.request.use((config) => {
@@ -18,7 +60,6 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Optional: Global handling for 401 Unauthorized
     if (error.response?.status === 401) {
       if (
         window.location.pathname !== '/login' &&
@@ -33,6 +74,16 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// ── Retry wrapper for GET requests ────────────────────────────────────────────
+function withRetry(fn, retries = 2, delay = 1000) {
+  return fn().catch((err) => {
+    if (retries <= 0 || err.response?.status < 500) throw err;
+    return new Promise((resolve) => setTimeout(resolve, delay)).then(() =>
+      withRetry(fn, retries - 1, delay * 2)
+    );
+  });
+}
 
 // ---- Auth ----
 export const authApi = {
@@ -68,13 +119,11 @@ export const moviesApi = {
   delete: (id) => api.delete(`/movies/${id}`),
 
   // ── Backblaze B2 Video ──────────────────────────────────────────────────
-  /** Get a pre-signed streaming URL for the movie video. Requires auth. */
   getStreamUrl: (id, provider) =>
     api.get(`/movies/${id}/stream`, {
       params: { provider },
     }),
 
-  /** Upload a video through the backend (server-side upload to cloud). Admin only. */
   uploadVideo: async (id, file, provider, onProgress) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -109,29 +158,29 @@ export const moviesApi = {
     return { success: true, ...res.data };
   },
 
-  /** Delete a movie's video. Admin only. */
   deleteVideo: (id) => api.delete(`/movies/${id}/video`),
-
-  /** Get storage statistics. Admin only. */
   getStorageStats: () => api.get('/movies/storage/stats'),
 };
 
-// ---- TMDB ----
+// ---- TMDB (with caching + deduplication) ----
 export const tmdbApi = {
-  getNowPlaying: (page = 1) => api.get(`/tmdb/now-playing?page=${page}`),
-  getUpcoming: (page = 1) => api.get(`/tmdb/upcoming?page=${page}`),
-  getPopular: (page = 1) => api.get(`/tmdb/popular?page=${page}`),
-  getTrending: () => api.get(`/tmdb/trending`),
-  getTopRated: (page = 1) => api.get(`/tmdb/top-rated?page=${page}`),
+  getNowPlaying: (page = 1) => cachedGet(`/tmdb/now-playing?page=${page}`),
+  getUpcoming: (page = 1) => cachedGet(`/tmdb/upcoming?page=${page}`),
+  getPopular: (page = 1) => cachedGet(`/tmdb/popular?page=${page}`),
+  getTrending: () => cachedGet(`/tmdb/trending`),
+  getTopRated: (page = 1) => cachedGet(`/tmdb/top-rated?page=${page}`),
   search: (query, page = 1) =>
-    api.get(`/tmdb/search?query=${encodeURIComponent(query)}&page=${page}`),
-  getMovieDetails: (tmdbId) => api.get(`/tmdb/movie/${tmdbId}`),
+    cachedGet(`/tmdb/search?query=${encodeURIComponent(query)}&page=${page}`),
+  getMovieDetails: (tmdbId) => cachedGet(`/tmdb/movie/${tmdbId}`),
+  /** Single call that returns all homepage TMDB data */
+  getHomepageBundle: () =>
+    withRetry(() => cachedGet('/tmdb/homepage-bundle')),
 };
 
 // ---- Theatres ----
 export const theatresApi = {
   getAll: (params) => api.get('/theatres', { params }),
-  getById: (id) => api.get(`/theatres/${id}`),
+  getById: (id) => cachedGet(`/theatres/${id}`),
   getNearby: (lat, lng, radius = 50) =>
     api.get('/theatres/nearby', { params: { lat, lng, radius } }),
   getByCity: (city) => api.get('/theatres', { params: { city } }),

@@ -86,7 +86,7 @@ export default function HeroCarousel({
             .filter(Boolean);
           setWatchlistIds(wIds);
         })
-        .catch(console.error);
+        .catch(() => {/* watchlist fetch failed — non-critical */});
     }
   }, [isOtt, isLoggedIn, profile]);
 

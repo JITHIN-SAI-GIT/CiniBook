@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -19,86 +19,17 @@ import HeroCarousel from '../components/HeroCarousel';
 import NearbyTheatresSection from '../components/NearbyTheatresSection';
 import { useLocation } from '../context/LocationContext';
 
-export default function LandingPage() {
-  const navigate = useNavigate();
-  const { selectedCity, setShowLocationModal } = useLocation();
-  const [nowPlaying, setNowPlaying] = useState([]);
-  const [upcoming, setUpcoming] = useState([]);
-  const [popular, setPopular] = useState([]);
-  const [trending, setTrending] = useState([]);
-  const [topRated, setTopRated] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const fetchMovies = async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const [nowRes, upRes, popRes, trendRes, topRes] = await Promise.all([
-        tmdbApi.getNowPlaying(),
-        tmdbApi.getUpcoming(),
-        tmdbApi.getPopular(),
-        tmdbApi.getTrending(),
-        tmdbApi.getTopRated(),
-      ]);
-
-      if (nowRes.data?.error) throw new Error('TMDB not configured');
-
-      setNowPlaying(nowRes.data.results || []);
-      setUpcoming(upRes.data.results || []);
-      setPopular(popRes.data.results || []);
-      setTrending(trendRes.data.results || []);
-      setTopRated(topRes.data.results || []);
-    } catch (err) {
-      console.error('Failed to fetch TMDB movies', err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchMovies();
-  }, []);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/movies?search=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center pt-20">
-        <div className="glass p-8 rounded-2xl flex flex-col items-center max-w-md text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">
-            Unable to load latest movies.
-          </h2>
-          <p className="text-gray-400 text-sm mb-6">
-            Could not connect to TMDB. Please check your API key configuration.
-          </p>
-          <button
-            onClick={fetchMovies}
-            className="btn-primary flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" /> Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const renderSection = (
-    title,
-    subtitle,
-    icon,
-    movies,
-    linkTo,
-    isUpcoming = false
-  ) => (
+// ── Memoized movie section component ──────────────────────────────────────────
+const MovieSection = memo(function MovieSection({
+  title,
+  subtitle,
+  icon,
+  movies,
+  linkTo,
+  loading,
+  isUpcoming = false,
+}) {
+  return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -136,31 +67,177 @@ export default function LandingPage() {
       )}
     </section>
   );
+});
 
-  const heroMovies = trending.slice(0, 5).map((tmdb) => ({
-    id: tmdb.id,
-    title: tmdb.title,
-    synopsis: tmdb.overview,
-    posterUrl: tmdb.poster_path
-      ? `https://image.tmdb.org/t/p/w500${tmdb.poster_path}`
-      : `https://placehold.co/500x750/1a1a2e/666?text=${encodeURIComponent(tmdb.title)}`,
-    bannerUrl: tmdb.backdrop_path
-      ? `https://image.tmdb.org/t/p/original${tmdb.backdrop_path}`
-      : `https://placehold.co/1920x1080/1a1a2e/666?text=${encodeURIComponent(tmdb.title)}`,
-    genre: 'Trending',
-    language: 'EN',
-    duration: 120,
-    rating: tmdb.vote_average,
-    trailerUrl: '',
-    castList: [],
-    isTrending: true,
-    createdAt: '',
-  }));
+export default function LandingPage() {
+  const navigate = useNavigate();
+  const { selectedCity, setShowLocationModal } = useLocation();
+
+  // Per-section state — each section loads independently
+  const [nowPlaying, setNowPlaying] = useState([]);
+  const [upcoming, setUpcoming] = useState([]);
+  const [popular, setPopular] = useState([]);
+  const [trending, setTrending] = useState([]);
+  const [topRated, setTopRated] = useState([]);
+
+  const [heroLoading, setHeroLoading] = useState(true);
+  const [sectionsLoading, setSectionsLoading] = useState({
+    nowPlaying: true,
+    trending: true,
+    popular: true,
+    upcoming: true,
+    topRated: true,
+  });
+  const [error, setError] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const abortRef = useRef(null);
+
+  const fetchMovies = useCallback(async () => {
+    // Abort any previous fetch
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setError(false);
+    setHeroLoading(true);
+    setSectionsLoading({
+      nowPlaying: true,
+      trending: true,
+      popular: true,
+      upcoming: true,
+      topRated: true,
+    });
+
+    try {
+      // Try the bundle endpoint first (single request for all data)
+      const bundleRes = await tmdbApi.getHomepageBundle();
+      const bundle = bundleRes.data;
+
+      if (controller.signal.aborted) return;
+
+      if (bundle?.error) throw new Error('TMDB not configured');
+
+      // Unpack the bundle — each section resolves immediately
+      const trendingData = bundle.trending?.results || [];
+      setTrending(trendingData);
+      setHeroLoading(false);
+      setSectionsLoading((prev) => ({ ...prev, trending: false }));
+
+      setNowPlaying(bundle.nowPlaying?.results || []);
+      setSectionsLoading((prev) => ({ ...prev, nowPlaying: false }));
+
+      setPopular(bundle.popular?.results || []);
+      setSectionsLoading((prev) => ({ ...prev, popular: false }));
+
+      setUpcoming(bundle.upcoming?.results || []);
+      setSectionsLoading((prev) => ({ ...prev, upcoming: false }));
+
+      setTopRated(bundle.topRated?.results || []);
+      setSectionsLoading((prev) => ({ ...prev, topRated: false }));
+    } catch (bundleErr) {
+      // Fallback: individual requests in parallel (non-blocking per section)
+      if (controller.signal.aborted) return;
+
+      const fetchSection = async (apiFn, setter, key) => {
+        try {
+          const res = await apiFn();
+          if (controller.signal.aborted) return;
+          if (res.data?.error) throw new Error('TMDB not configured');
+          setter(res.data.results || []);
+        } catch {
+          if (!controller.signal.aborted) setter([]);
+        } finally {
+          if (!controller.signal.aborted) {
+            setSectionsLoading((prev) => ({ ...prev, [key]: false }));
+          }
+        }
+      };
+
+      // Fire trending first (needed for hero)
+      fetchSection(tmdbApi.getTrending, (data) => {
+        setTrending(data);
+        setHeroLoading(false);
+      }, 'trending').catch(() => {
+        setHeroLoading(false);
+        setError(true);
+      });
+
+      // Fire remaining sections in parallel
+      fetchSection(tmdbApi.getNowPlaying, setNowPlaying, 'nowPlaying');
+      fetchSection(() => tmdbApi.getPopular(), setPopular, 'popular');
+      fetchSection(() => tmdbApi.getUpcoming(), setUpcoming, 'upcoming');
+      fetchSection(() => tmdbApi.getTopRated(), setTopRated, 'topRated');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMovies();
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, [fetchMovies]);
+
+  const handleSearch = useCallback(
+    (e) => {
+      e.preventDefault();
+      if (searchQuery.trim()) {
+        navigate(`/movies?search=${encodeURIComponent(searchQuery.trim())}`);
+      }
+    },
+    [searchQuery, navigate]
+  );
+
+  // Memoize hero movies computation
+  const heroMovies = useMemo(
+    () =>
+      trending.slice(0, 5).map((tmdb) => ({
+        id: tmdb.id,
+        title: tmdb.title,
+        synopsis: tmdb.overview,
+        posterUrl: tmdb.poster_path
+          ? `https://image.tmdb.org/t/p/w500${tmdb.poster_path}`
+          : `https://placehold.co/500x750/1a1a2e/666?text=${encodeURIComponent(tmdb.title)}`,
+        bannerUrl: tmdb.backdrop_path
+          ? `https://image.tmdb.org/t/p/original${tmdb.backdrop_path}`
+          : `https://placehold.co/1920x1080/1a1a2e/666?text=${encodeURIComponent(tmdb.title)}`,
+        genre: 'Trending',
+        language: 'EN',
+        duration: 120,
+        rating: tmdb.vote_average,
+        trailerUrl: '',
+        castList: [],
+        isTrending: true,
+        createdAt: '',
+      })),
+    [trending]
+  );
+
+  if (error && trending.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pt-20">
+        <div className="glass p-8 rounded-2xl flex flex-col items-center max-w-md text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+          <h2 className="text-xl font-bold text-white mb-2">
+            Unable to load latest movies.
+          </h2>
+          <p className="text-gray-400 text-sm mb-6">
+            Could not connect to TMDB. Please check your API key configuration.
+          </p>
+          <button
+            onClick={fetchMovies}
+            className="btn-primary flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen page-enter">
       {/* Hero */}
-      {loading ? (
+      {heroLoading ? (
         <div className="px-4 pt-20">
           <CarouselSkeleton />
         </div>
@@ -204,42 +281,47 @@ export default function LandingPage() {
         {/* Nearby Theatres Section */}
         <NearbyTheatresSection />
 
-        {renderSection(
-          '🎬 Now Playing',
-          'Currently in theatres',
-          <Film className="w-5 h-5 text-white" />,
-          nowPlaying,
-          '/movies'
-        )}
-        {renderSection(
-          '🔥 Trending Today',
-          'Top trending movies right now',
-          <TrendingUp className="w-5 h-5 text-white" />,
-          trending,
-          '/movies?tab=trending'
-        )}
-        {renderSection(
-          '🍿 Popular',
-          'Fan favorites globally',
-          <Star className="w-5 h-5 text-white" />,
-          popular,
-          '/movies?tab=popular'
-        )}
-        {renderSection(
-          '🎥 Coming Soon',
-          'Upcoming releases',
-          <Clock className="w-5 h-5 text-white" />,
-          upcoming,
-          '/movies?tab=upcoming',
-          true
-        )}
-        {renderSection(
-          '⭐ Top Rated',
-          'Highest rated of all time',
-          <Star className="w-5 h-5 text-white" />,
-          topRated,
-          '/movies?tab=toprated'
-        )}
+        <MovieSection
+          title="🎬 Now Playing"
+          subtitle="Currently in theatres"
+          icon={<Film className="w-5 h-5 text-white" />}
+          movies={nowPlaying}
+          linkTo="/movies"
+          loading={sectionsLoading.nowPlaying}
+        />
+        <MovieSection
+          title="🔥 Trending Today"
+          subtitle="Top trending movies right now"
+          icon={<TrendingUp className="w-5 h-5 text-white" />}
+          movies={trending}
+          linkTo="/movies?tab=trending"
+          loading={sectionsLoading.trending}
+        />
+        <MovieSection
+          title="🍿 Popular"
+          subtitle="Fan favorites globally"
+          icon={<Star className="w-5 h-5 text-white" />}
+          movies={popular}
+          linkTo="/movies?tab=popular"
+          loading={sectionsLoading.popular}
+        />
+        <MovieSection
+          title="🎥 Coming Soon"
+          subtitle="Upcoming releases"
+          icon={<Clock className="w-5 h-5 text-white" />}
+          movies={upcoming}
+          linkTo="/movies?tab=upcoming"
+          loading={sectionsLoading.upcoming}
+          isUpcoming
+        />
+        <MovieSection
+          title="⭐ Top Rated"
+          subtitle="Highest rated of all time"
+          icon={<Star className="w-5 h-5 text-white" />}
+          movies={topRated}
+          linkTo="/movies?tab=toprated"
+          loading={sectionsLoading.topRated}
+        />
       </div>
     </div>
   );

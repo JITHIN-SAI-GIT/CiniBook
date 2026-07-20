@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Building2, ChevronRight, Navigation } from 'lucide-react';
 import { theatresApi } from '../lib/api';
@@ -9,8 +9,19 @@ export default function NearbyTheatresSection() {
   const { userLocation, selectedCity } = useLocation();
   const [theatres, setTheatres] = useState([]);
   const [loading, setLoading] = useState(true);
+  const abortRef = useRef(null);
+  const lastFetchKey = useRef('');
 
   useEffect(() => {
+    // Deduplicate: don't re-fetch if location hasn't actually changed
+    const fetchKey = `${userLocation?.lat},${userLocation?.lng},${selectedCity}`;
+    if (fetchKey === lastFetchKey.current) return;
+    lastFetchKey.current = fetchKey;
+
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const load = async () => {
       setLoading(true);
       try {
@@ -24,6 +35,7 @@ export default function NearbyTheatresSection() {
               userLocation.lng,
               50
             );
+            if (controller.signal.aborted) return;
             const local = nearbyRes.data || [];
             local.forEach((t) =>
               combined.push({
@@ -45,6 +57,7 @@ export default function NearbyTheatresSection() {
         } else if (selectedCity) {
           try {
             const cityRes = await theatresApi.getByCity(selectedCity);
+            if (controller.signal.aborted) return;
             const local = cityRes.data || [];
             local.forEach((t) =>
               combined.push({
@@ -63,14 +76,14 @@ export default function NearbyTheatresSection() {
         }
 
         // 2. Get OSM theatres if we have GPS
-        if (userLocation) {
+        if (userLocation && !controller.signal.aborted) {
           try {
             const osm = await getNearbyTheatresFromOSM(
               userLocation.lat,
               userLocation.lng,
               20000
             );
-            // Only add OSM theatres not already in local list
+            if (controller.signal.aborted) return;
             const localNames = combined.map((c) => c.name.toLowerCase());
             osm.slice(0, 15).forEach((t) => {
               if (
@@ -94,14 +107,20 @@ export default function NearbyTheatresSection() {
           }
         }
 
+        if (controller.signal.aborted) return;
+
         // Sort by distance
         combined.sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
         setTheatres(combined.slice(0, 10));
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     load();
+
+    return () => {
+      controller.abort();
+    };
   }, [userLocation, selectedCity]);
 
   if (loading) {

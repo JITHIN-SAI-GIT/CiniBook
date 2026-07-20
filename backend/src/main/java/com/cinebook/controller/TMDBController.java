@@ -49,4 +49,16 @@ public class TMDBController {
     public ResponseEntity<Map<String, Object>> getMovieDetails(@PathVariable long tmdbId) {
         return ResponseEntity.ok(tmdbService.getMovieDetails(tmdbId));
     }
+
+    /**
+     * Returns all homepage TMDB data (nowPlaying, trending, popular, upcoming, topRated)
+     * in a single response. Eliminates 5 separate API calls from the frontend.
+     */
+    @GetMapping("/homepage-bundle")
+    public ResponseEntity<Map<String, Object>> getHomepageBundle() {
+        Map<String, Object> bundle = tmdbService.getHomepageBundle();
+        return ResponseEntity.ok()
+                .header("Cache-Control", "public, max-age=300, stale-while-revalidate=600")
+                .body(bundle);
+    }
 }

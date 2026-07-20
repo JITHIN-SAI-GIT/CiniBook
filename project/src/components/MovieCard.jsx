@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Clock } from 'lucide-react';
 import SafeImage from './SafeImage';
 
 import { formatDuration } from '../lib/utils';
 
-export default function MovieCard({ movie }) {
+const MovieCard = memo(function MovieCard({ movie }) {
   return (
     <Link to={`/movie/${movie.id}`} className="group block">
       <div className="relative rounded-2xl overflow-hidden card-hover">
@@ -68,4 +69,6 @@ export default function MovieCard({ movie }) {
       </div>
     </Link>
   );
-}
+});
+
+export default MovieCard;

@@ -4,13 +4,23 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon-rounded.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="CineBook — Book movie tickets online, discover trending films, explore nearby theatres, and stream OTT movies. Your premium movie experience." />
+    <meta name="theme-color" content="#0a0a0f" />
     <title>CineBook — Movie Ticket Booking</title>
+    <!-- Preconnect to critical origins for faster resource loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://image.tmdb.org" />
+    <link rel="preconnect" href="https://cinebook-backend-6e0a.onrender.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <!-- Critical inline CSS for instant First Contentful Paint -->
+    <style>
+      body { margin: 0; background: #0a0a0f; color: #fff; font-family: 'Poppins', system-ui, sans-serif; }
+      #root { min-height: 100vh; }
+    </style>
     <script>
       if (typeof global === 'undefined') {
         window.global = window;

@@ -13,18 +13,26 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
+    const controller = new AbortController();
     authApi
       .me()
-      .then(({ data }) =>
-        setProfile({
-          id: data.userId,
-          email: data.email,
-          fullName: data.fullName,
-          role: data.role,
-        })
-      )
-      .catch(() => localStorage.removeItem('cb_token'))
-      .finally(() => setLoading(false));
+      .then(({ data }) => {
+        if (!controller.signal.aborted) {
+          setProfile({
+            id: data.userId,
+            email: data.email,
+            fullName: data.fullName,
+            role: data.role,
+          });
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) localStorage.removeItem('cb_token');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   const signUp = async (email, password, fullName) => {
