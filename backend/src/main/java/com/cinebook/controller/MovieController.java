@@ -213,17 +213,39 @@ public class MovieController {
             int prefixIdx = requestURI.indexOf(prefix);
             String fileId = prefixIdx != -1 ? requestURI.substring(prefixIdx + prefix.length()) : "";
 
+            if (fileId == null || fileId.isBlank()) {
+                log.error("File ID is missing in the request.");
+                response.setStatus(400);
+                response.getWriter().write("File ID is missing.");
+                return;
+            }
+
             log.info("Streaming Google Drive file: fileId={}, Range={}", fileId, rangeHeader);
             java.net.http.HttpResponse<java.io.InputStream> googleResponse = 
                     googleDriveStorageProvider.downloadFileWithRange(fileId, rangeHeader);
             
-            response.setStatus(googleResponse.statusCode());
+            int statusCode = googleResponse.statusCode();
+            
+            if (statusCode == 404) {
+                String errorBody = "";
+                try {
+                    errorBody = new String(googleResponse.body().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                } catch (Exception e) {
+                    log.warn("Could not read error body from Google Drive response: {}", e.getMessage());
+                }
+                log.error("Google Drive API returned 404 for File ID: {}. Response: {}", fileId, errorBody);
+                response.setStatus(404);
+                response.getWriter().write("Download failed: 404 Not Found from Google Drive.");
+                return;
+            }
+            
+            response.setStatus(statusCode);
             
             googleResponse.headers().map().forEach((key, values) -> {
                 if (key.equalsIgnoreCase("Content-Type") || 
-                    key.equalsIgnoreCase("Content-Length") || 
                     key.equalsIgnoreCase("Content-Range") || 
-                    key.equalsIgnoreCase("Accept-Ranges")) {
+                    key.equalsIgnoreCase("Accept-Ranges") ||
+                    key.equalsIgnoreCase("Content-Disposition")) {
                     values.forEach(val -> response.setHeader(key, val));
                 }
             });
