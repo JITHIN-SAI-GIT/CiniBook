@@ -426,4 +426,9 @@ public class GoogleDriveStorageProvider implements StorageProvider {
             return false;
         }
     }
+
+    @Override
+    public String getBucketName() {
+        return "Google Drive";
+    }
 }

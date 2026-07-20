@@ -729,4 +729,9 @@ public class BackblazeB2StorageProvider implements StorageProvider {
             return false;
         }
     }
+
+    @Override
+    public String getBucketName() {
+        return this.bucketName;
+    }
 }

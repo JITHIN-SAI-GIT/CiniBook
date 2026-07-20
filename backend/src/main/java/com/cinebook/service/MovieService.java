@@ -151,7 +151,6 @@ public class MovieService {
                 .storageProvider(req.getStorageProvider())
                 .backdropUrl(req.getBackdropUrl())
                 .videoUrl(req.getVideoUrl())
-                .providerFileId(req.getProviderFileId())
                 .fileSize(req.getFileSize())
                 .videoResolution(req.getVideoResolution())
                 .uploadDate(java.time.LocalDateTime.now())
@@ -181,7 +180,6 @@ public class MovieService {
         if (req.getStorageProvider() != null) m.setStorageProvider(req.getStorageProvider());
         if (req.getBackdropUrl() != null) m.setBackdropUrl(req.getBackdropUrl());
         if (req.getVideoUrl() != null) m.setVideoUrl(req.getVideoUrl());
-        if (req.getProviderFileId() != null) m.setProviderFileId(req.getProviderFileId());
         if (req.getFileSize() != null) m.setFileSize(req.getFileSize());
         if (req.getVideoResolution() != null) m.setVideoResolution(req.getVideoResolution());
         if (req.getDownloadEnabled() != null) m.setDownloadEnabled(req.getDownloadEnabled());
@@ -255,7 +253,7 @@ public class MovieService {
 
             // Persist metadata to DB
             movie.setVideoFileName(result.getProviderFileId());
-            movie.setBucketName(result.getProviderName().equals("backblaze_b2") ? "Cini-Book" : "Google Drive");
+            movie.setBucketName(storageManager.getProvider(provider).getBucketName());
             movie.setMimeType(file.getContentType());
             movie.setFileSize(result.getFileSize());
             movie.setVideoUrl(result.getPublicUrl());
@@ -265,8 +263,8 @@ public class MovieService {
             movie.setIsOtt(true); // Mark as OTT since it has a streamable video
             movieRepository.save(movie);
 
-            log.info("Video upload complete for movieId={}: provider={}, fileName={}, size={} bytes",
-                    movieId, result.getProviderName(), result.getProviderFileId(), result.getFileSize());
+            log.info("EVENT=UPLOAD_SUCCESS | movieId={} | provider={} | fileId={} | fileName={} | bytes={}",
+                    movieId, result.getProviderName(), result.getProviderFileId(), file.getOriginalFilename(), result.getFileSize());
 
             return Map.of(
                 "success", true,
@@ -274,9 +272,10 @@ public class MovieService {
                 "size", result.getFileSize(),
                 "mimeType", file.getContentType(),
                 "uploadedAt", LocalDateTime.now().toString(),
-                "bucketName", result.getProviderName()
+                "bucketName", storageManager.getProvider(provider).getBucketName()
             );
         } catch (Exception e) {
+            log.error("EVENT=UPLOAD_FAILED | movieId={} | provider={} | error={}", movieId, provider, e.getMessage());
             throw new RuntimeException("Failed to upload video: " + e.getMessage(), e);
         }
     }
@@ -297,8 +296,8 @@ public class MovieService {
                 .orElseThrow(() -> new RuntimeException("Movie not found: " + movieId));
 
         // 1. Read Movie from database (done above)
-        // 2. Log important fields
-        log.info("Generating stream URL. movieId={}, DB storageProvider={}, DB videoFileName={}",
+        // 2. Log important fields using structured logging
+        log.info("EVENT=STREAM_URL_REQUEST | movieId={} | provider={} | fileId={}",
                 movie.getId(), movie.getStorageProvider(), movie.getVideoFileName());
 
         if (movie.getVideoFileName() != null && !movie.getVideoFileName().isBlank()) {
@@ -321,10 +320,14 @@ public class MovieService {
             try {
                 com.cinebook.service.storage.StorageProvider provider = storageManager.getProvider(targetProvider);
                 // 8. Log which StorageProvider implementation is actually executed.
-                log.info("Executing provider implementation: {}", provider.getClass().getName());
+                log.info("EVENT=PROVIDER_SELECTED | movieId={} | providerClass={}", movieId, provider.getClass().getName());
 
                 if (provider.isConfigured()) {
+                    long startTime = System.currentTimeMillis();
                     String downloadUrl = provider.generateDownloadUrl(movie.getVideoFileName());
+                    log.info("EVENT=STREAM_URL_SUCCESS | movieId={} | provider={} | elapsed={}ms", 
+                             movieId, targetProvider, System.currentTimeMillis() - startTime);
+                             
                     return Map.of(
                         "streamUrl", downloadUrl,
                         "source", targetProvider,
@@ -333,11 +336,12 @@ public class MovieService {
                         "cloudSwitching", false
                     );
                 } else {
-                    log.error("Provider {} is not configured.", targetProvider);
+                    log.error("EVENT=STREAM_URL_FAILED | reason=ProviderNotConfigured | movieId={} | provider={}", movieId, targetProvider);
                     throw new RuntimeException("Storage provider not configured: " + targetProvider);
                 }
             } catch (Exception e) {
-                log.error("Provider {} failed to generate download URL for movieId={}: {}", targetProvider, movieId, e.getMessage(), e);
+                log.error("EVENT=STREAM_URL_FAILED | reason=Exception | movieId={} | provider={} | error={}", 
+                          movieId, targetProvider, e.getMessage(), e);
                 throw new RuntimeException("Failed to generate download URL: " + e.getMessage(), e);
             }
         }
@@ -412,7 +416,16 @@ public class MovieService {
             List<software.amazon.awssdk.services.s3.model.S3Object> objects = b2Provider.listAllObjects();
             List<Movie> movies = movieRepository.findAll();
             
-            log.info("Found {} objects in B2 bucket and {} movies in DB", objects.size(), movies.size());
+            log.info("EVENT=B2_SYNC_START | objects={} | movies={}", objects.size(), movies.size());
+            
+            // O(1) Lookup Map to prevent O(N^2) bottleneck
+            java.util.Map<String, Movie> movieSlugMap = new java.util.HashMap<>();
+            for (Movie m : movies) {
+                String slug = m.getTitle().toLowerCase().replaceAll("[^a-z0-9\\s-]", "").replaceAll("\\s+", "-");
+                if (!slug.isEmpty()) {
+                    movieSlugMap.put(slug, m);
+                }
+            }
             
             for (software.amazon.awssdk.services.s3.model.S3Object obj : objects) {
                 String key = obj.key();
@@ -421,20 +434,14 @@ public class MovieService {
                     continue;
                 }
                 
-                log.info("Scanning B2 video file: {} (Size: {} bytes)", key, obj.size());
+                log.debug("Scanning B2 video file: {} (Size: {} bytes)", key, obj.size());
                 
                 // Try to find a matching movie
                 Movie matchedMovie = null;
-                for (Movie movie : movies) {
-                    String titleSlug = movie.getTitle().toLowerCase()
-                            .replaceAll("[^a-z0-9\\s-]", "")
-                            .replaceAll("\\s+", "-");
-                    
-                    log.info("Comparing key '{}' with DB movie '{}' (slug: '{}')", key, movie.getTitle(), titleSlug);
-                    
-                    // Match if the key contains the title slug or slug matches part of the file name
-                    if (!titleSlug.isEmpty() && (key.toLowerCase().contains(titleSlug) || titleSlug.contains(key.toLowerCase()))) {
-                        matchedMovie = movie;
+                for (java.util.Map.Entry<String, Movie> entry : movieSlugMap.entrySet()) {
+                    String titleSlug = entry.getKey();
+                    if (key.toLowerCase().contains(titleSlug) || titleSlug.contains(key.toLowerCase())) {
+                        matchedMovie = entry.getValue();
                         break;
                     }
                 }
@@ -618,7 +625,7 @@ public class MovieService {
                 "uploadUrl", uploadUrl,
                 "objectKey", objectKey,
                 "provider", providerId,
-                "bucketName", providerId.equals("backblaze_b2") ? "Cini-Book" : "Google Drive"
+                "bucketName", storageManager.getProvider(providerId).getBucketName()
             );
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate upload URL: " + e.getMessage(), e);
@@ -653,7 +660,7 @@ public class MovieService {
         String publicUrl = storageManager.getProvider(provider).getPublicUrl(objectKey);
 
         movie.setVideoFileName(objectKey);
-        movie.setBucketName(provider.equals("backblaze_b2") ? "Cini-Book" : "Google Drive");
+        movie.setBucketName(storageManager.getProvider(provider).getBucketName());
         movie.setMimeType(contentType != null ? contentType : "video/mp4");
         movie.setFileSize(fileSize);
         movie.setVideoUrl(publicUrl);

@@ -214,13 +214,15 @@ public class MovieController {
             String fileId = prefixIdx != -1 ? requestURI.substring(prefixIdx + prefix.length()) : "";
 
             if (fileId == null || fileId.isBlank()) {
-                log.error("File ID is missing in the request.");
+                log.error("EVENT=PROXY_FAILED | reason=MissingFileId");
                 response.setStatus(400);
                 response.getWriter().write("File ID is missing.");
                 return;
             }
 
-            log.info("Streaming Google Drive file: fileId={}, Range={}", fileId, rangeHeader);
+            long startTime = System.currentTimeMillis();
+            log.info("EVENT=PROXY_START | provider=google_drive | fileId={} | range={}", fileId, rangeHeader);
+            
             java.net.http.HttpResponse<java.io.InputStream> googleResponse = 
                     googleDriveStorageProvider.downloadFileWithRange(fileId, rangeHeader);
             
@@ -230,10 +232,8 @@ public class MovieController {
                 String errorBody = "";
                 try {
                     errorBody = new String(googleResponse.body().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-                } catch (Exception e) {
-                    log.warn("Could not read error body from Google Drive response: {}", e.getMessage());
-                }
-                log.error("Google Drive API returned 404 for File ID: {}. Response: {}", fileId, errorBody);
+                } catch (Exception e) {}
+                log.error("EVENT=PROXY_FAILED | provider=google_drive | reason=404_NotFound | fileId={} | body={}", fileId, errorBody);
                 response.setStatus(404);
                 response.getWriter().write("Download failed: 404 Not Found from Google Drive.");
                 return;
@@ -245,11 +245,13 @@ public class MovieController {
                 if (key.equalsIgnoreCase("Content-Type") || 
                     key.equalsIgnoreCase("Content-Range") || 
                     key.equalsIgnoreCase("Accept-Ranges") ||
-                    key.equalsIgnoreCase("Content-Disposition")) {
+                    key.equalsIgnoreCase("Content-Disposition") ||
+                    key.equalsIgnoreCase("Content-Length")) {
                     values.forEach(val -> response.setHeader(key, val));
                 }
             });
             
+            long bytesStreamed = 0;
             try (java.io.InputStream in = googleResponse.body();
                  java.io.OutputStream out = response.getOutputStream()) {
                 if (in != null) {
@@ -257,12 +259,17 @@ public class MovieController {
                     int bytesRead;
                     while ((bytesRead = in.read(buffer)) != -1) {
                         out.write(buffer, 0, bytesRead);
+                        bytesStreamed += bytesRead;
                     }
                     out.flush();
                 }
             }
+            
+            log.info("EVENT=PROXY_SUCCESS | provider=google_drive | fileId={} | bytes={} | elapsed={}ms", 
+                     fileId, bytesStreamed, System.currentTimeMillis() - startTime);
+            
         } catch (Exception e) {
-            log.error("Failed to stream file from Google Drive: {}", e.getMessage(), e);
+            log.error("EVENT=PROXY_FAILED | provider=google_drive | reason=Exception | error={}", e.getMessage(), e);
             response.setStatus(500);
         }
     }

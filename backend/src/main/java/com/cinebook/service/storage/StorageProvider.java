@@ -23,4 +23,6 @@ public interface StorageProvider {
     
     // For direct upload URL generation (presigned or resumable session URL)
     String generateUploadUrl(String path, String contentType) throws Exception;
+    
+    String getBucketName();
 }
