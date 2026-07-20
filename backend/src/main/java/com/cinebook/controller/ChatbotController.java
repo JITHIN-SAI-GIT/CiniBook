@@ -8,9 +8,11 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 
-@Controller
+@RestController
 @Slf4j
 @RequiredArgsConstructor
 public class ChatbotController {
@@ -43,6 +45,24 @@ public class ChatbotController {
                     .timestamp(java.time.LocalDateTime.now())
                     .build();
             messagingTemplate.convertAndSend("/topic/chat/" + incomingMessage.getSessionId(), errorResponse);
+        }
+    }
+
+    @PostMapping("/api/chat")
+    public ChatMessageDTO handleChatMessageHttp(@RequestBody ChatMessageDTO incomingMessage) {
+        log.info("Received HTTP chat message from user {}: {}", incomingMessage.getUserId(), incomingMessage.getMessage());
+        try {
+            return orchestratorService.processMessage(incomingMessage);
+        } catch (Exception e) {
+            log.error("Failed to process HTTP chat message", e);
+            return ChatMessageDTO.builder()
+                    .sessionId(incomingMessage.getSessionId())
+                    .userId(incomingMessage.getUserId())
+                    .sender("bot")
+                    .message("I'm having trouble processing that right now. Please try again.")
+                    .type("ERROR")
+                    .timestamp(java.time.LocalDateTime.now())
+                    .build();
         }
     }
 }

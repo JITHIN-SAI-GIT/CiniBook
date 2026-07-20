@@ -45,8 +45,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/auth/me").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/movies/tmdb/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
-                // WebSocket endpoint
+                // WebSocket & Chat endpoint
                 .requestMatchers("/ws-chat/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/chat").permitAll()
                 // Stream endpoint: requires authentication (any logged-in user)
                 .requestMatchers(HttpMethod.GET, "/api/movies/*/stream").authenticated()
                 // Storage stats: admin only

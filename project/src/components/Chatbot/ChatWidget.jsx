@@ -9,6 +9,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useChatSocket } from '../../hooks/useChatSocket';
+import cinebookLogo from '../../assets/image.png';
 
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -58,9 +59,9 @@ export default function ChatWidget() {
       {/* Floating Action Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 p-4 rounded-full bg-gradient-to-r from-[#e63946] to-[#c1121f] text-white shadow-lg shadow-red-900/50 hover:scale-110 transition-all z-50 flex items-center justify-center ${isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'}`}
+        className={`fixed bottom-6 right-6 w-14 h-14 rounded-full bg-[#0a0a0f] border-2 border-[#e63946] shadow-lg shadow-red-900/50 hover:scale-110 transition-all z-50 flex items-center justify-center overflow-hidden ${isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'}`}
       >
-        <MessageCircle className="w-6 h-6" />
+        <img src={cinebookLogo} alt="Chat" className="w-full h-full object-contain p-1.5" />
       </button>
 
       {/* Chat Window */}
@@ -74,8 +75,8 @@ export default function ChatWidget() {
         {/* Header */}
         <div className="p-4 border-b border-white/10 bg-gradient-to-r from-[#e63946]/20 to-transparent rounded-t-2xl flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#e63946] to-[#c1121f] flex items-center justify-center shadow-lg">
-              <Film className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-full bg-[#0a0a0f] border border-white/20 flex items-center justify-center shadow-lg overflow-hidden">
+              <img src={cinebookLogo} alt="CiniBot Logo" className="w-full h-full object-contain p-1" />
             </div>
             <div>
               <h3 className="font-bold text-white font-outfit tracking-wide">
@@ -101,8 +102,8 @@ export default function ChatWidget() {
         <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
           {/* Welcome Message */}
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#e63946] to-[#c1121f] flex items-center justify-center flex-shrink-0 shadow-lg mt-1">
-              <Film className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-full bg-[#0a0a0f] border border-[#e63946]/50 flex items-center justify-center flex-shrink-0 shadow-lg mt-1 overflow-hidden">
+              <img src={cinebookLogo} alt="CiniBot" className="w-full h-full object-contain p-1" />
             </div>
             <div className="bg-[#1a1a24] border border-white/5 p-3 rounded-2xl rounded-tl-sm text-sm text-gray-200">
               Hi there! I'm CiniBot. I can help you with movie information (like
@@ -119,12 +120,12 @@ export default function ChatWidget() {
                 className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
               >
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg mt-1 ${isUser ? 'bg-gray-800' : 'bg-gradient-to-br from-[#e63946] to-[#c1121f]'}`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg mt-1 overflow-hidden ${isUser ? 'bg-gray-800' : 'bg-[#0a0a0f] border border-[#e63946]/50'}`}
                 >
                   {isUser ? (
                     <User className="w-4 h-4 text-gray-300" />
                   ) : (
-                    <Film className="w-4 h-4 text-white" />
+                    <img src={cinebookLogo} alt="CiniBot" className="w-full h-full object-contain p-1" />
                   )}
                 </div>
                 <div
