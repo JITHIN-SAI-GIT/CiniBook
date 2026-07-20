@@ -40,6 +40,16 @@ public class MovieSyncScheduler {
             } catch (Exception e) {
                 log.error("B2 sync failed during startup (non-blocking): {}", e.getMessage());
             }
+
+            // Google Drive sync
+            try {
+                long gdStart = System.currentTimeMillis();
+                log.info("Running initial Google Drive cloud sync in background...");
+                movieService.syncExistingGoogleDriveVideos();
+                log.info("Google Drive sync completed in {}ms", System.currentTimeMillis() - gdStart);
+            } catch (Exception e) {
+                log.error("Google Drive sync failed during startup (non-blocking): {}", e.getMessage());
+            }
             
             log.info("Background startup sync finished. Total time: {}ms", System.currentTimeMillis() - start);
         }, "Startup-Sync-Thread");
@@ -53,5 +63,6 @@ public class MovieSyncScheduler {
         log.info("Running scheduled TMDB movie sync...");
         tmdbService.syncNowPlayingMovies();
         movieService.syncExistingB2Videos();
+        movieService.syncExistingGoogleDriveVideos();
     }
 }

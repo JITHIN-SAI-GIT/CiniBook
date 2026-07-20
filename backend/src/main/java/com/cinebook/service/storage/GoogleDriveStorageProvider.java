@@ -358,6 +358,55 @@ public class GoogleDriveStorageProvider implements StorageProvider {
                 .orElseThrow(() -> new RuntimeException("Location header not present in Google Drive resumable session response."));
     }
 
+    public java.util.List<java.util.Map<String, Object>> listAllFiles() {
+        java.util.List<java.util.Map<String, Object>> files = new java.util.ArrayList<>();
+        if (!isConfigured() || folderId == null || folderId.isBlank()) {
+            return files;
+        }
+
+        try {
+            String token = getAccessToken();
+            String query = String.format("'%s' in parents and trashed = false", folderId);
+            String url = "https://www.googleapis.com/drive/v3/files?q=" + 
+                         java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8) + 
+                         "&fields=nextPageToken,files(id,name,size,mimeType)";
+            
+            String pageToken = null;
+            do {
+                String pageUrl = url + (pageToken != null ? "&pageToken=" + pageToken : "");
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(pageUrl))
+                        .header("Authorization", "Bearer " + token)
+                        .GET()
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() != 200) {
+                    log.warn("Failed to list Google Drive files: {}", response.body());
+                    break;
+                }
+
+                JsonNode root = objectMapper.readTree(response.body());
+                JsonNode filesArray = root.path("files");
+                if (filesArray.isArray()) {
+                    for (JsonNode fileNode : filesArray) {
+                        java.util.Map<String, Object> fileMap = new java.util.HashMap<>();
+                        fileMap.put("id", fileNode.path("id").asText());
+                        fileMap.put("name", fileNode.path("name").asText());
+                        fileMap.put("mimeType", fileNode.path("mimeType").asText());
+                        fileMap.put("size", fileNode.has("size") ? fileNode.get("size").asLong() : 0L);
+                        files.add(fileMap);
+                    }
+                }
+                pageToken = root.hasNonNull("nextPageToken") ? root.get("nextPageToken").asText() : null;
+            } while (pageToken != null && !pageToken.isEmpty());
+            
+        } catch (Exception e) {
+            log.error("Error listing Google Drive files: {}", e.getMessage(), e);
+        }
+        return files;
+    }
+
     @Override
     public String generateDownloadUrl(String fileId) throws Exception {
         // Return proxy stream URL relative to our backend

@@ -502,6 +502,109 @@ public class MovieService {
         }
     }
 
+    public void syncExistingGoogleDriveVideos() {
+        try {
+            log.info("Starting sync of existing Google Drive video files with Database movies...");
+            com.cinebook.service.storage.StorageProvider provider = storageManager.getProvider("google_drive");
+            if (!(provider instanceof com.cinebook.service.storage.GoogleDriveStorageProvider)) {
+                return;
+            }
+            com.cinebook.service.storage.GoogleDriveStorageProvider gdProvider = 
+                (com.cinebook.service.storage.GoogleDriveStorageProvider) provider;
+                
+            java.util.List<java.util.Map<String, Object>> objects = gdProvider.listAllFiles();
+            java.util.List<Movie> movies = movieRepository.findAll();
+            
+            log.info("EVENT=GD_SYNC_START | objects={} | movies={}", objects.size(), movies.size());
+            
+            java.util.Map<String, Movie> movieSlugMap = new java.util.HashMap<>();
+            for (Movie m : movies) {
+                String slug = m.getTitle().toLowerCase().replaceAll("[^a-z0-9\\s-]", "").replaceAll("\\s+", "-");
+                if (!slug.isEmpty()) {
+                    movieSlugMap.put(slug, m);
+                }
+            }
+            
+            for (java.util.Map<String, Object> obj : objects) {
+                String id = (String) obj.get("id");
+                String name = (String) obj.get("name");
+                Long size = (Long) obj.get("size");
+                String mimeType = (String) obj.get("mimeType");
+                
+                if (mimeType == null || !mimeType.startsWith("video/")) {
+                    continue;
+                }
+                
+                log.debug("Scanning Google Drive video file: {} (Size: {} bytes)", name, size);
+                
+                Movie matchedMovie = null;
+                for (java.util.Map.Entry<String, Movie> entry : movieSlugMap.entrySet()) {
+                    String titleSlug = entry.getKey();
+                    if (name.toLowerCase().contains(titleSlug) || titleSlug.contains(name.toLowerCase())) {
+                        matchedMovie = entry.getValue();
+                        break;
+                    }
+                }
+                
+                if (matchedMovie != null) {
+                    if ("backblaze_b2".equals(matchedMovie.getStorageProvider())) {
+                        log.info("Skipping Google Drive sync for movie '{}' because it's configured for B2", matchedMovie.getTitle());
+                        continue;
+                    }
+                    if (id.equals(matchedMovie.getVideoFileName())) {
+                        continue; // Already mapped perfectly
+                    }
+                    log.info("Matched Google Drive file '{}' to movie '{}' (ID: {})", name, matchedMovie.getTitle(), matchedMovie.getId());
+                    matchedMovie.setStorageProvider("google_drive");
+                    matchedMovie.setVideoFileName(id);
+                    matchedMovie.setFileSize(size);
+                    
+                    String publicUrl = gdProvider.getPublicUrl(id);
+                    matchedMovie.setVideoUrl(publicUrl);
+                    matchedMovie.setStreamUrl(publicUrl);
+                    matchedMovie.setMimeType(mimeType);
+                    
+                    if (matchedMovie.getUploadDate() == null) {
+                        matchedMovie.setUploadDate(java.time.LocalDateTime.now());
+                    }
+                    movieRepository.save(matchedMovie);
+                } else {
+                    log.info("No matching movie found in DB for Google Drive file: {}. Auto-creating movie...", name);
+                    String cleanTitle = cleanTitleFromKey(name);
+                    
+                    Movie newMovie = new Movie();
+                    newMovie.setTitle(cleanTitle);
+                    newMovie.setStorageProvider("google_drive");
+                    newMovie.setVideoFileName(id);
+                    newMovie.setFileSize(size);
+                    
+                    String publicUrl = gdProvider.getPublicUrl(id);
+                    newMovie.setVideoUrl(publicUrl);
+                    newMovie.setStreamUrl(publicUrl);
+                    newMovie.setMimeType(mimeType);
+                    
+                    newMovie.setIsOtt(true);
+                    newMovie.setGenre("Drama");
+                    newMovie.setDuration(120);
+                    newMovie.setRating(7.5);
+                    newMovie.setLanguage("English");
+                    newMovie.setPosterUrl("https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&auto=format&fit=crop");
+                    newMovie.setBannerUrl("https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1000&auto=format&fit=crop");
+                    newMovie.setSynopsis("This movie was automatically synchronized from Google Drive storage files.");
+                    newMovie.setIsTrending(true);
+                    newMovie.setDownloadEnabled(true);
+                    newMovie.setUploadDate(java.time.LocalDateTime.now());
+                    
+                    movieRepository.save(newMovie);
+                    log.info("Successfully auto-created movie '{}' in DB for Google Drive file '{}'", cleanTitle, name);
+                }
+            }
+            log.info("Finished sync of Google Drive video files.");
+        } catch (Exception e) {
+            log.error("Failed to sync Google Drive videos: {}", e.getMessage(), e);
+        }
+    }
+
     private String cleanTitleFromKey(String key) {
         String folderName = "";
         String[] parts = key.split("/");

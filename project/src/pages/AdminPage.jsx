@@ -153,7 +153,7 @@ export default function AdminPage() {
         {tab === 'vouchers' && (
           <VouchersTab vouchers={vouchers} onRefresh={fetchAll} />
         )}
-        {tab === 'ott' && <OttTab movies={movies} onRefresh={fetchAll} />}
+        {tab === 'ott' && <OttTab movies={movies} onRefresh={fetchAll} storageStats={storageStats} />}
       </div>
     </div>
   );

@@ -185,9 +185,17 @@ export const DownloadProvider = ({ children }) => {
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
-      const extension = movie.videoFileName
+      const mimeToExt = {
+        'video/mp4': 'mp4',
+        'video/x-matroska': 'mkv',
+        'video/webm': 'webm',
+        'video/quicktime': 'mov',
+        'video/x-msvideo': 'avi',
+      };
+      const extension = movie.videoFileName && movie.videoFileName.includes('.')
         ? movie.videoFileName.split('.').pop()
-        : 'mp4';
+        : mimeToExt[movie.mimeType] || 'mp4';
+      
       link.download = `${movie.title.trim().replace(/\s+/g, '_')}_${movie.videoResolution || '1080p'}.${extension}`;
       document.body.appendChild(link);
       link.click();
