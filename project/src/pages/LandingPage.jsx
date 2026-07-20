@@ -28,6 +28,7 @@ const MovieSection = memo(function MovieSection({
   linkTo,
   loading,
   isUpcoming = false,
+  showBookTickets = false,
 }) {
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -60,7 +61,7 @@ const MovieSection = memo(function MovieSection({
         <div className="flex gap-5 overflow-x-auto no-scrollbar pb-2">
           {movies.map((movie) => (
             <div key={movie.id} className="min-w-[180px] md:min-w-[220px]">
-              <TMDBMovieCard movie={movie} isUpcoming={isUpcoming} />
+              <TMDBMovieCard movie={movie} isUpcoming={isUpcoming} showBookTickets={showBookTickets} />
             </div>
           ))}
         </div>
@@ -288,6 +289,7 @@ export default function LandingPage() {
           movies={nowPlaying}
           linkTo="/movies"
           loading={sectionsLoading.nowPlaying}
+          showBookTickets={true}
         />
         <MovieSection
           title="🔥 Trending Today"
@@ -296,6 +298,7 @@ export default function LandingPage() {
           movies={trending}
           linkTo="/movies?tab=trending"
           loading={sectionsLoading.trending}
+          showBookTickets={true}
         />
         <MovieSection
           title="🍿 Popular"

@@ -1,19 +1,20 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { Star, Ticket } from 'lucide-react';
 import SafeImage from './SafeImage';
 
-const TMDBMovieCard = memo(function TMDBMovieCard({ movie, isUpcoming = false }) {
+const TMDBMovieCard = memo(function TMDBMovieCard({ movie, isUpcoming = false, showBookTickets = false }) {
   const posterUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : '';
 
   return (
-    <Link
-      to={`/movie/${movie.id}`}
-      state={{ isUpcoming }}
-      className="group block"
-    >
+    <div className="group block relative">
+      <Link
+        to={`/movie/${movie.id}`}
+        state={{ isUpcoming }}
+        className="block"
+      >
       <div className="relative rounded-2xl overflow-hidden card-hover">
         {/* Poster */}
         <div className="aspect-[2/3] bg-white/5 overflow-hidden">
@@ -57,22 +58,36 @@ const TMDBMovieCard = memo(function TMDBMovieCard({ movie, isUpcoming = false })
           </div>
         </div>
       </div>
+      </Link>
       {/* Title below card */}
-      <div className="mt-2 px-1">
-        <p className="text-sm font-semibold text-gray-200 truncate group-hover:text-white transition-colors">
-          {movie.title}
-        </p>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {movie.release_date
-            ? new Date(movie.release_date).toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })
-            : 'TBD'}
-        </p>
+      <div className="mt-2 px-1 flex flex-col">
+        <Link to={`/movie/${movie.id}`} state={{ isUpcoming }} className="block">
+          <p className="text-sm font-semibold text-gray-200 truncate group-hover:text-white transition-colors">
+            {movie.title}
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {movie.release_date
+              ? new Date(movie.release_date).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : 'TBD'}
+          </p>
+        </Link>
+        
+        {showBookTickets && (
+          <a
+            href={`https://in.bookmyshow.com/explore/movies?search=${encodeURIComponent(movie.title)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex items-center justify-center gap-1.5 w-full bg-[#ffd60a]/10 hover:bg-[#ffd60a]/20 text-[#ffd60a] text-xs font-bold py-1.5 rounded-lg transition-colors border border-[#ffd60a]/20"
+          >
+            <Ticket className="w-3.5 h-3.5" /> Book Tickets
+          </a>
+        )}
       </div>
-    </Link>
+    </div>
   );
 });
 

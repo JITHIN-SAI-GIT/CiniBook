@@ -335,6 +335,7 @@ export default function MoviesPage() {
                 key={movie.id}
                 movie={movie}
                 isUpcoming={activeTab === 'upcoming'}
+                showBookTickets={activeTab === 'now_playing' || activeTab === 'trending'}
               />
             ))}
           </div>
