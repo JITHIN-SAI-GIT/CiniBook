@@ -56,6 +56,7 @@ export default function OttHomePage() {
 
   // Fetch initial content
   useEffect(() => {
+    let isMounted = true;
     Promise.all([
       moviesApi.getOttTrending(),
       moviesApi.getOttMovies(),
@@ -67,6 +68,7 @@ export default function OttHomePage() {
         : Promise.resolve({ data: [] }),
     ])
       .then(([trendingRes, allRes, historyRes, watchlistRes]) => {
+        if (!isMounted) return;
         const sortedTrending = (trendingRes.data || []).sort(
           (a, b) => b.id - a.id
         );
@@ -81,7 +83,13 @@ export default function OttHomePage() {
           .filter(Boolean);
         setMyList(watchlistMovies);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [isLoggedIn, profile]);
 
   // Filter list

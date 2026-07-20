@@ -68,7 +68,8 @@ api.interceptors.response.use(
         window.location.pathname !== '/forgot-password'
       ) {
         localStorage.removeItem('cb_token');
-        window.location.href = '/login';
+        // Dispatch a custom event instead of hard refreshing the page
+        window.dispatchEvent(new Event('auth:unauthorized'));
       }
     }
     return Promise.reject(error);

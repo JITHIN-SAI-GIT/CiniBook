@@ -1,8 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapPin, Navigation, Search, X, Loader2, Globe } from 'lucide-react';
 import { useLocation } from '../context/LocationContext';
-import { Country, State, City } from 'country-state-city';
-
 export default function LocationModal() {
   const {
     showLocationModal,
@@ -18,14 +16,26 @@ export default function LocationModal() {
   const [selectedCityName, setSelectedCityName] = useState('');
   const [manualMode, setManualMode] = useState(false);
 
+  // Dynamic import state for country-state-city
+  const [csc, setCsc] = useState(null);
+
+  // Load the massive JSON payload only when manual mode is engaged
+  useEffect(() => {
+    if (manualMode && !csc) {
+      import('country-state-city').then((module) => {
+        setCsc(module);
+      });
+    }
+  }, [manualMode, csc]);
+
   if (!showLocationModal) return null;
 
-  const countries = Country.getAllCountries();
-  const states = selectedCountryCode
-    ? State.getStatesOfCountry(selectedCountryCode)
+  const countries = csc ? csc.Country.getAllCountries() : [];
+  const states = (csc && selectedCountryCode)
+    ? csc.State.getStatesOfCountry(selectedCountryCode)
     : [];
-  const cities = selectedStateCode
-    ? City.getCitiesOfState(selectedCountryCode, selectedStateCode)
+  const cities = (csc && selectedStateCode)
+    ? csc.City.getCitiesOfState(selectedCountryCode, selectedStateCode)
     : [];
 
   const handleCountryChange = (e) => {
@@ -40,9 +50,9 @@ export default function LocationModal() {
   };
 
   const handleConfirm = () => {
-    if (!selectedCityName) return;
-    const country = Country.getCountryByCode(selectedCountryCode);
-    const state = State.getStateByCodeAndCountry(
+    if (!selectedCityName || !csc) return;
+    const country = csc.Country.getCountryByCode(selectedCountryCode);
+    const state = csc.State.getStateByCodeAndCountry(
       selectedStateCode,
       selectedCountryCode
     );

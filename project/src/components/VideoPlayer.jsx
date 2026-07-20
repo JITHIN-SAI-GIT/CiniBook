@@ -209,36 +209,61 @@ export default function VideoPlayer({
   };
 
   // Keyboard shortcut listener
+  const latestStateRef = useRef({ volume, isPlaying });
+  useEffect(() => {
+    latestStateRef.current = { volume, isPlaying };
+  }, [volume, isPlaying]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
+      const { volume: currentVol, isPlaying: currentIsPlaying } = latestStateRef.current;
       if (e.code === 'Space') {
         e.preventDefault();
-        togglePlay();
+        // For togglePlay we need to access the latest state, but we can just use the function
+        const video = videoRef.current;
+        if (!video) return;
+        if (video.paused) {
+          video.volume = currentVol;
+          video.muted = (currentVol === 0);
+          video.play();
+          setIsPlaying(true);
+        } else {
+          video.pause();
+          setIsPlaying(false);
+        }
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
-        handleSkip(10);
+        const video = videoRef.current;
+        if (video) video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + 10));
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
-        handleSkip(-10);
+        const video = videoRef.current;
+        if (video) video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime - 10));
       } else if (e.code === 'ArrowUp') {
         e.preventDefault();
-        const nextVol = Math.min(1, volume + 0.1);
+        const nextVol = Math.min(1, currentVol + 0.1);
         setVolume(nextVol);
         setIsMuted(nextVol === 0);
       } else if (e.code === 'ArrowDown') {
         e.preventDefault();
-        const nextVol = Math.max(0, volume - 0.1);
+        const nextVol = Math.max(0, currentVol - 0.1);
         setVolume(nextVol);
         setIsMuted(nextVol === 0);
       } else if (e.code === 'KeyF') {
         e.preventDefault();
-        toggleFullscreen();
+        const container = containerRef.current;
+        if (!container) return;
+        if (!document.fullscreenElement) {
+          container.requestFullscreen().then(() => setIsFullscreen(true)).catch(console.error);
+        } else {
+          document.exitFullscreen().then(() => setIsFullscreen(false)).catch(console.error);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, volume]);
+  }, []);
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 

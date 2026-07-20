@@ -77,12 +77,15 @@ export default function MoviesPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchMovies = async () => {
       setLoading(true);
       setError(false);
       try {
         const search = searchParams.get('search');
         let res;
+        // Since tmdbApi doesn't yet support AbortSignal in our custom lib, we just check aborted state.
+        // If we want to truly abort Axios requests we'd need to modify tmdbApi, but preventing stale state is enough.
         if (search) {
           res = await tmdbApi.search(search);
         } else {
@@ -105,16 +108,24 @@ export default function MoviesPage() {
               break;
           }
         }
+        if (controller.signal.aborted) return;
         if (res.data?.error) throw new Error('TMDB Error');
         setMovies(res.data?.results || []);
       } catch (err) {
+        if (controller.signal.aborted) return;
         console.error('Failed to fetch movies', err);
         setError(true);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
     fetchMovies();
+
+    return () => {
+      controller.abort();
+    };
   }, [searchParams, activeTab]);
 
   // Apply language + genre filters

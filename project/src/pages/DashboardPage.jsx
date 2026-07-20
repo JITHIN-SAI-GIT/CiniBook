@@ -29,15 +29,23 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
+    const controller = new AbortController();
     (async () => {
       setLoading(true);
       try {
         const res = await bookingsApi.getMyBookings();
-        setBookings(res.data || []);
+        if (!controller.signal.aborted) {
+          setBookings(res.data || []);
+        }
+      } catch (err) {
+        // Handle error gracefully if needed
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     })();
+    return () => controller.abort();
   }, [isLoggedIn]);
 
   const handleCancel = async (bookingId) => {

@@ -35,6 +35,16 @@ export function AuthProvider({ children }) {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setProfile(null);
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
+  }, []);
+
   const signUp = async (email, password, fullName) => {
     try {
       await authApi.signup(email, password, fullName);
