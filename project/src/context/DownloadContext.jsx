@@ -188,7 +188,11 @@ export const DownloadProvider = ({ children }) => {
       const mimeToExt = {
         'video/mp4': 'mp4',
         'video/x-matroska': 'mkv',
+        'video/matroska': 'mkv',
         'video/webm': 'webm',
+        'video/quicktime': 'mov',
+        'video/x-msvideo': 'avi',
+      };
         'video/quicktime': 'mov',
         'video/x-msvideo': 'avi',
       };
