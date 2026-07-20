@@ -76,7 +76,7 @@ export default function VideoPlayer({
       video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('canplay', handleCanPlay);
     };
-  }, [initialProgressSeconds, volume, isMuted]);
+  }, [initialProgressSeconds]);
 
   // Periodic progress saving
   useEffect(() => {

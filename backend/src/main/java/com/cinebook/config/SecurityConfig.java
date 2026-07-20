@@ -35,6 +35,8 @@ public class SecurityConfig {
                 // Allow all CORS preflight requests through security
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Public endpoints
+                // BUG-5 Fix: Require authentication for google-stream BEFORE the generic /api/movies/** permitAll
+                .requestMatchers(HttpMethod.GET, "/api/movies/google-stream/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/movies/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/theatres/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/showtimes/**").permitAll()

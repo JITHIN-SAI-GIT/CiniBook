@@ -2,6 +2,10 @@ import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://cinebook-backend-6e0a.onrender.com/api';
 
+// Derive the backend origin (without /api suffix) for constructing absolute URLs
+// from relative paths returned by the backend (e.g., Google Drive proxy URLs).
+export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
+
 // ── Request timeout (15 seconds) ──────────────────────────────────────────────
 const REQUEST_TIMEOUT = 15000;
 
@@ -123,6 +127,7 @@ export const moviesApi = {
   getStreamUrl: (id, provider) =>
     api.get(`/movies/${id}/stream`, {
       params: { provider },
+      timeout: 60000, // 60s timeout — Render free tier cold starts can take 30-60s
     }),
 
   uploadVideo: async (id, file, provider, onProgress) => {

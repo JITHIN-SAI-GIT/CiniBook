@@ -641,7 +641,7 @@ public class MovieService {
         String contentType = (String) payload.get("contentType");
         String provider = (String) payload.get("provider");
         if (provider == null || provider.isBlank()) {
-            provider = "backblaze_b2";
+            throw new IllegalArgumentException("provider is required");
         }
 
         if (objectKey == null || objectKey.isBlank()) {

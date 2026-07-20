@@ -33,12 +33,13 @@ public class StorageManager {
     }
 
     public StorageProvider getProvider(String providerId) {
-        // Fallback to backblaze_b2 if not specified (for backward compatibility)
-        String targetId = (providerId == null || providerId.isBlank()) ? "backblaze_b2" : providerId;
+        if (providerId == null || providerId.isBlank()) {
+            throw new IllegalArgumentException("providerId cannot be null or blank");
+        }
         return providers.stream()
-                .filter(p -> p.getProviderId().equalsIgnoreCase(targetId))
+                .filter(p -> p.getProviderId().equalsIgnoreCase(providerId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown storage provider: " + targetId));
+                .orElseThrow(() -> new IllegalArgumentException("Unknown storage provider: " + providerId));
     }
 
     public StorageProvider selectProvider(long fileSize) {

@@ -305,10 +305,15 @@ function DashboardTab({ stats, movies, storageStats }) {
                             className={`w-2 h-2 rounded-full ${provider.healthy ? 'bg-green-400' : 'bg-red-500'}`}
                           ></span>
                           {provider.name}
-                          {storageStats.activeProvider ===
-                            provider.providerId && (
+                          {provider.healthy && (
                             <span className="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full font-normal">
                               Active
+                            </span>
+                          )}
+                          {storageStats.activeProvider ===
+                            provider.providerId && (
+                            <span className="text-[9px] bg-[#ffd60a]/10 text-[#ffd60a] border border-[#ffd60a]/20 px-1.5 py-0.5 rounded-full font-normal">
+                              Primary
                             </span>
                           )}
                         </td>

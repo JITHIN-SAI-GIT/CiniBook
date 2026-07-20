@@ -15,7 +15,7 @@ import {
   X,
   Check,
 } from 'lucide-react';
-import { moviesApi, watchlistApi, watchHistoryApi } from '../lib/api';
+import { moviesApi, watchlistApi, watchHistoryApi, API_ORIGIN } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useDownload } from '../context/DownloadContext';
@@ -98,7 +98,8 @@ export default function OttMovieDetail() {
     try {
       const res = await moviesApi.getStreamUrl(Number(id));
       const url = res.data.streamUrl;
-      setStreamUrl(url);
+      const absoluteUrl = url.startsWith('/') ? `${API_ORIGIN}${url}` : url;
+      setStreamUrl(absoluteUrl);
       setIsStreaming(true);
     } catch (err) {
       const msg =

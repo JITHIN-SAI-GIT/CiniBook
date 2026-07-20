@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
-import { api, moviesApi, watchHistoryApi } from '../lib/api';
+import { api, moviesApi, watchHistoryApi, API_ORIGIN } from '../lib/api';
 import { X, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 
 import { formatBytes } from '../lib/utils';
@@ -89,40 +89,22 @@ export const DownloadProvider = ({ children }) => {
 
       // Use the authenticated api instance for download.
       // streamUrl is a relative path like "/api/movies/google-stream/xyz" or a full B2 pre-signed URL.
-      // For relative URLs, api.get() will prepend the base URL and include the JWT token.
-      // For absolute URLs (B2 pre-signed), axios will use them directly.
+      // For relative URLs, we must construct the full backend URL since the frontend
+      // is hosted on a different origin than the backend.
       const isRelativeUrl = streamUrl.startsWith('/');
+      const absoluteStreamUrl = isRelativeUrl
+        ? `${API_ORIGIN}${streamUrl}`
+        : streamUrl;
 
       const downloadStartTime = Date.now();
 
       const downloadResponse = await (isRelativeUrl
-        ? // Relative URL → go through our authenticated axios instance
-          api.get(streamUrl, {
-            responseType: 'blob',
-            onDownloadProgress: (progressEvent) => {
-              if (progressEvent.total) {
-                const currentTime = Date.now();
-                const elapsed = (currentTime - downloadStartTime) / 1000;
-                const bytesPerSec = elapsed > 0 ? progressEvent.loaded / elapsed : 0;
-                const remainingBytes = progressEvent.total - progressEvent.loaded;
-                const eta = bytesPerSec > 0 ? remainingBytes / bytesPerSec : 0;
-
-                setDownload((prev) => {
-                  if (!prev || prev.movieId !== movie.id) return prev;
-                  return {
-                    ...prev,
-                    percent: Math.round((progressEvent.loaded / progressEvent.total) * 100),
-                    speed: Math.round(bytesPerSec / 1024),
-                    remaining: Math.round(eta),
-                    loadedBytes: progressEvent.loaded,
-                    totalBytes: progressEvent.total,
-                  };
-                });
-              }
+        ? // Relative URL (Google Drive proxy) → use fetch with JWT token to the absolute backend URL
+          fetch(absoluteStreamUrl, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('cb_token')}`,
             },
-          })
-        : // Absolute URL (B2 pre-signed) → use fetch directly (no auth needed for pre-signed)
-          fetch(streamUrl).then(async (fetchRes) => {
+          }).then(async (fetchRes) => {
             if (!fetchRes.ok) throw new Error(`Download failed: ${fetchRes.status}`);
             
             const total = parseInt(fetchRes.headers.get('content-length') || movie.fileSize || '0', 10);
@@ -136,25 +118,60 @@ export const DownloadProvider = ({ children }) => {
               chunks.push(value);
               loaded += value.byteLength;
               
-              if (total > 0) {
-                 const currentTime = Date.now();
-                 const elapsed = (currentTime - downloadStartTime) / 1000;
-                 const bytesPerSec = elapsed > 0 ? loaded / elapsed : 0;
-                 const remainingBytes = total - loaded;
-                 const eta = bytesPerSec > 0 ? remainingBytes / bytesPerSec : 0;
-                 
-                 setDownload((prev) => {
-                   if (!prev || prev.movieId !== movie.id) return prev;
-                   return {
-                     ...prev,
-                     percent: Math.round((loaded / total) * 100),
-                     speed: Math.round(bytesPerSec / 1024),
-                     remaining: Math.round(eta),
-                     loadedBytes: loaded,
-                     totalBytes: total,
-                   };
-                 });
-              }
+              const currentTime = Date.now();
+              const elapsed = (currentTime - downloadStartTime) / 1000;
+              const bytesPerSec = elapsed > 0 ? loaded / elapsed : 0;
+              const remainingBytes = total > 0 ? total - loaded : 0;
+              const eta = (total > 0 && bytesPerSec > 0) ? remainingBytes / bytesPerSec : 0;
+              
+              setDownload((prev) => {
+                if (!prev || prev.movieId !== movie.id) return prev;
+                return {
+                  ...prev,
+                  percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
+                  speed: Math.round(bytesPerSec / 1024),
+                  remaining: Math.round(eta),
+                  loadedBytes: loaded,
+                  totalBytes: total > 0 ? total : loaded,
+                };
+              });
+            }
+            
+            const blob = new Blob(chunks);
+            return { data: blob, status: fetchRes.status };
+          })
+        : // Absolute URL (B2 pre-signed) → use fetch directly (no auth needed for pre-signed)
+          fetch(absoluteStreamUrl).then(async (fetchRes) => {
+            if (!fetchRes.ok) throw new Error(`Download failed: ${fetchRes.status}`);
+            
+            const total = parseInt(fetchRes.headers.get('content-length') || movie.fileSize || '0', 10);
+            let loaded = 0;
+            const reader = fetchRes.body.getReader();
+            const chunks = [];
+            
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              loaded += value.byteLength;
+              
+              const currentTime = Date.now();
+              const elapsed = (currentTime - downloadStartTime) / 1000;
+              const bytesPerSec = elapsed > 0 ? loaded / elapsed : 0;
+              const remainingBytes = total > 0 ? total - loaded : 0;
+              const eta = (total > 0 && bytesPerSec > 0) ? remainingBytes / bytesPerSec : 0;
+              
+              setDownload((prev) => {
+                if (!prev || prev.movieId !== movie.id) return prev;
+                return {
+                  ...prev,
+                  percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
+                  speed: Math.round(bytesPerSec / 1024),
+                  remaining: Math.round(eta),
+                  loadedBytes: loaded,
+                  totalBytes: total > 0 ? total : loaded,
+                };
+              });
             }
             
             const blob = new Blob(chunks);

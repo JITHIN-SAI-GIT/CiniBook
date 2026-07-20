@@ -144,11 +144,9 @@ public class Movie {
 
     public void setBackdropUrl(String backdropUrl) {
         this.backdropUrl = backdropUrl;
-        this.bannerUrl = backdropUrl;
     }
 
     public void setVideoUrl(String videoUrl) {
         this.videoUrl = videoUrl;
-        this.streamUrl = videoUrl;
     }
 }
