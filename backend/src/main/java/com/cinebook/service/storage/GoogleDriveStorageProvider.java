@@ -111,6 +111,7 @@ public class GoogleDriveStorageProvider implements StorageProvider {
         long totalSize = file.getSize();
         log.info("Initiating chunked resumable Google Drive upload: filename={}, size={} bytes, chunkSize={} bytes",
                 file.getOriginalFilename(), totalSize, chunkSize);
+        log.info("Upload started: filename={}, size={}, folder={}", file.getOriginalFilename(), totalSize, folderId);
 
         // Step 1: Initiate resumable session
         String sessionUrl = generateUploadUrl(file.getOriginalFilename(), file.getContentType());
@@ -141,6 +142,7 @@ public class GoogleDriveStorageProvider implements StorageProvider {
                     JsonNode node = objectMapper.readTree(chunkResponse.body());
                     String fileId = node.get("id").asText();
                     log.info("Google Drive chunked upload complete: fileId={}, totalBytes={}", fileId, totalSize);
+                    log.info("Upload completed: fileId={}, size={}, folder={}", fileId, totalSize, folderId);
 
                     return UploadResult.builder()
                             .publicUrl(getPublicUrl(fileId))
@@ -179,7 +181,6 @@ public class GoogleDriveStorageProvider implements StorageProvider {
                 HttpRequest putRequest = HttpRequest.newBuilder()
                         .uri(URI.create(sessionUrl))
                         .PUT(HttpRequest.BodyPublishers.ofByteArray(data, 0, length))
-                        .header("Content-Length", String.valueOf(length))
                         .header("Content-Range", contentRange)
                         .timeout(Duration.ofMinutes(5))
                         .build();
