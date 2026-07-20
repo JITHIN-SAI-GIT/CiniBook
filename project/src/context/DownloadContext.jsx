@@ -193,9 +193,6 @@ export const DownloadProvider = ({ children }) => {
         'video/quicktime': 'mov',
         'video/x-msvideo': 'avi',
       };
-        'video/quicktime': 'mov',
-        'video/x-msvideo': 'avi',
-      };
       const extension = movie.videoFileName && movie.videoFileName.includes('.')
         ? movie.videoFileName.split('.').pop()
         : mimeToExt[movie.mimeType] || 'mp4';
