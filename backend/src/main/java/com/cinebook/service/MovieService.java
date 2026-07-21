@@ -253,8 +253,8 @@ public class MovieService {
 
             // Persist metadata to DB
             movie.setVideoFileName(result.getProviderFileId());
-            movie.setBucketName(storageManager.getProvider(provider).getBucketName());
-            movie.setMimeType(file.getContentType());
+            movie.setBucketName(storageManager.getProvider(result.getProviderName()).getBucketName());
+            movie.setMimeType(file.getContentType() != null ? file.getContentType() : "video/mp4");
             movie.setFileSize(result.getFileSize());
             movie.setVideoUrl(result.getPublicUrl());
             movie.setStreamUrl(result.getPublicUrl());
@@ -266,14 +266,14 @@ public class MovieService {
             log.info("EVENT=UPLOAD_SUCCESS | movieId={} | provider={} | fileId={} | fileName={} | bytes={}",
                     movieId, result.getProviderName(), result.getProviderFileId(), file.getOriginalFilename(), result.getFileSize());
 
-            return Map.of(
-                "success", true,
-                "fileName", result.getProviderFileId(),
-                "size", result.getFileSize(),
-                "mimeType", file.getContentType(),
-                "uploadedAt", LocalDateTime.now().toString(),
-                "bucketName", storageManager.getProvider(provider).getBucketName()
-            );
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("success", true);
+            response.put("fileName", result.getProviderFileId());
+            response.put("size", result.getFileSize());
+            response.put("mimeType", file.getContentType() != null ? file.getContentType() : "video/mp4");
+            response.put("uploadedAt", LocalDateTime.now().toString());
+            response.put("bucketName", storageManager.getProvider(result.getProviderName()).getBucketName());
+            return response;
         } catch (Exception e) {
             log.error("EVENT=UPLOAD_FAILED | movieId={} | provider={} | error={}", movieId, provider, e.getMessage());
             throw new RuntimeException("Failed to upload video: " + e.getMessage(), e);

@@ -339,14 +339,20 @@ public class GoogleDriveStorageProvider implements StorageProvider {
             log.warn("Could not determine dynamic Origin for Google Drive upload, using default: {}", e.getMessage());
         }
 
-        HttpRequest request = HttpRequest.newBuilder()
+        String resolvedContentType = contentType != null ? contentType : "video/mp4";
+
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable"))
                 .header("Authorization", "Bearer " + token)
                 .header("Content-Type", "application/json; charset=UTF-8")
-                .header("X-Upload-Content-Type", contentType)
-                .header("Origin", origin)
-                .POST(HttpRequest.BodyPublishers.ofString(metadata))
-                .build();
+                .header("X-Upload-Content-Type", resolvedContentType)
+                .POST(HttpRequest.BodyPublishers.ofString(metadata));
+
+        if (origin != null && !origin.isBlank()) {
+            builder.header("Origin", origin);
+        }
+
+        HttpRequest request = builder.build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) {

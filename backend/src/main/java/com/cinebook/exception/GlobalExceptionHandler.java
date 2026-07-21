@@ -32,7 +32,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         log.error("Database error: {}", ex.getMessage());
         Map<String, String> error = new HashMap<>();
-        error.put("error", "Database error occurred (e.g., duplicate entry or foreign key violation).");
+        String msg = "Database error occurred (e.g., duplicate entry or foreign key violation).";
+        error.put("error", msg);
+        error.put("message", msg);
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
@@ -40,7 +42,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
         log.warn("Illegal argument: {}", ex.getMessage());
         Map<String, String> error = new HashMap<>();
-        error.put("error", ex.getMessage());
+        String msg = ex.getMessage();
+        error.put("error", msg);
+        error.put("message", msg);
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
@@ -48,7 +52,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
         log.error("Runtime Exception: ", ex);
         Map<String, String> error = new HashMap<>();
-        error.put("error", ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred");
+        String msg = ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred";
+        error.put("error", msg);
+        error.put("message", msg);
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
@@ -56,7 +62,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) {
         log.error("Internal Server Error: ", ex);
         Map<String, String> error = new HashMap<>();
-        error.put("error", "An internal server error occurred.");
+        String msg = "An internal server error occurred.";
+        error.put("error", msg);
+        error.put("message", msg);
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
