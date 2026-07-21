@@ -13,6 +13,7 @@ import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -32,6 +33,7 @@ public class AuthService {
                 throw new RuntimeException("Email already registered");
             } else {
                 String otp = generateOTP();
+                log.info("OTP generated for existing unverified email {}: {}", req.getEmail(), otp);
                 existingUser.setPasswordHash(passwordEncoder.encode(req.getPassword()));
                 existingUser.setFullName(req.getFullName());
                 existingUser.setOtp(otp);
@@ -44,6 +46,7 @@ public class AuthService {
         }
         
         String otp = generateOTP();
+        log.info("OTP generated for email {}: {}", req.getEmail(), otp);
         
         User user = User.builder()
                 .email(req.getEmail())
@@ -84,6 +87,7 @@ public class AuthService {
         user.setOtp(null);
         user.setOtpExpiry(null);
         userRepository.save(user);
+        log.info("OTP verified successfully for email: {}", req.getEmail());
         
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), user.getId());
         return new AuthResponse(token, user.getId(), user.getEmail(), user.getFullName(), user.getRole().name());
@@ -98,6 +102,7 @@ public class AuthService {
         }
         
         String otp = generateOTP();
+        log.info("OTP generated (resend) for email {}: {}", req.getEmail(), otp);
         user.setOtp(otp);
         user.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
         userRepository.save(user);

@@ -58,6 +58,7 @@ public class EmailService {
             log.info("OTP Email sent successfully to {}", to);
         } catch (Exception e) {
             log.error("Failed to send email to {}. Dev OTP code is: {}", to, otp, e);
+            throw new RuntimeException("Email sending failed: " + e.getMessage(), e);
         }
     }
 }

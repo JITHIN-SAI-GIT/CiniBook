@@ -10,12 +10,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class AuthController {   
 
     private final AuthService authService;
 
     @PostMapping("/signup")
     public ResponseEntity<AuthResponse> signup(@RequestBody SignupRequest req) {
+        log.info("Incoming signup request for email: {}", req.getEmail());
         return ResponseEntity.ok(authService.signup(req));
     }
 
@@ -38,11 +40,13 @@ public class AuthController {
         
     @PostMapping("/verify-email-otp")
     public ResponseEntity<AuthResponse> verifyEmailOtp(@RequestBody VerifyOtpRequest req) {
+        log.info("Incoming verify-email-otp request for email: {}", req.getEmail());
         return ResponseEntity.ok(authService.verifyOtp(req));
     }
     
     @PostMapping("/resend-email-otp")
     public ResponseEntity<?> resendEmailOtp(@RequestBody ResendOtpRequest req) {
+        log.info("Incoming resend-email-otp request for email: {}", req.getEmail());
         authService.resendOtp(req);
         return ResponseEntity.ok().build();
     }
