@@ -32,6 +32,7 @@ public class MovieResponse {
     private String videoResolution;
     private LocalDateTime uploadDate;
     private Boolean downloadEnabled;
+    private String videoFileName;
 
     public static MovieResponse from(Movie m) {
         MovieResponse r = new MovieResponse();
@@ -60,6 +61,7 @@ public class MovieResponse {
         r.videoResolution = m.getVideoResolution();
         r.uploadDate = m.getUploadDate();
         r.downloadEnabled = m.getDownloadEnabled();
+        r.videoFileName = m.getVideoFileName();
         return r;
     }
 }

@@ -20,8 +20,22 @@ export function useChatSocket() {
 
     const client = new Client({
       webSocketFactory: () => {
-        const wsUrl = import.meta.env.VITE_WS_URL || 'https://cinebook-backend-6e0a.onrender.com/ws-chat';
-        return new SockJS(wsUrl);
+        // In dev, '/ws-chat' routes through the Vite proxy.
+        // In production, derive the WS URL from the API base URL or use VITE_WS_URL.
+        let wsUrl = import.meta.env.VITE_WS_URL;
+        if (!wsUrl) {
+          const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+          if (apiBase.startsWith('http')) {
+            // Production: absolute API URL like https://cinebook-backend-6e0a.onrender.com/api
+            wsUrl = apiBase.replace(/\/api\/?$/, '') + '/ws-chat';
+          } else {
+            // Dev: relative path, Vite proxy handles it
+            wsUrl = '/ws-chat';
+          }
+        }
+        // Only use transports that work through the proxy — skip xhr-streaming/xhr-polling
+        // which trigger 403s from the Render backend's CORS policy
+        return new SockJS(wsUrl, null, { transports: ['websocket', 'eventsource'] });
       },
       connectHeaders: {
         Authorization: `Bearer ${localStorage.getItem('cb_token') || ''}`,
@@ -85,7 +99,7 @@ export function useChatSocket() {
       // HTTP Fallback
       setIsFallback(true);
       try {
-        const baseUrl = import.meta.env.VITE_API_URL || 'https://cinebook-backend-6e0a.onrender.com/api';
+        const baseUrl = import.meta.env.VITE_API_URL || '/api';
         const res = await fetch(`${baseUrl}/chat`, {
           method: 'POST',
           headers: {

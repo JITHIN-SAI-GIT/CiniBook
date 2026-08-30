@@ -97,18 +97,18 @@ export default function OttHomePage() {
     const matchesSearch =
       !search ||
       m.title.toLowerCase().includes(search.toLowerCase()) ||
-      m.genre.toLowerCase().includes(search.toLowerCase()) ||
-      m.language.toLowerCase().includes(search.toLowerCase()) ||
+      (m.genre || '').toLowerCase().includes(search.toLowerCase()) ||
+      (m.language || '').toLowerCase().includes(search.toLowerCase()) ||
       (m.castList &&
         m.castList.some((actor) =>
           actor.toLowerCase().includes(search.toLowerCase())
         ));
 
     const matchesGenre =
-      !filterGenre || m.genre.toLowerCase().includes(filterGenre.toLowerCase());
+      !filterGenre || (m.genre || '').toLowerCase().includes(filterGenre.toLowerCase());
     const matchesLanguage =
       !filterLanguage ||
-      m.language.toLowerCase() === filterLanguage.toLowerCase();
+      (m.language || '').toLowerCase() === filterLanguage.toLowerCase();
     const matchesQuality =
       !filterQuality ||
       (m.videoResolution &&

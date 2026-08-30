@@ -61,14 +61,13 @@ export default function AdminPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [mv, th, st, bk, statsRes, vouchRes, storageRes] = await Promise.all([
+      const [mv, th, st, bk, statsRes, vouchRes] = await Promise.all([
         moviesApi.getAll(),
         theatresApi.getAll(),
         showtimesApi.getAll(),
         bookingsApi.getAll(),
         bookingsApi.getStats(),
         vouchersApi.getAll(),
-        moviesApi.getStorageStats(),
       ]);
       setMovies(mv.data || []);
       setTheatres(th.data || []);
@@ -76,10 +75,13 @@ export default function AdminPage() {
       setBookings(bk.data || []);
       setStats(statsRes.data);
       setVouchers(vouchRes.data || []);
-      setStorageStats(storageRes.data);
     } finally {
       setLoading(false);
     }
+    // Load storage stats separately so cloud API latency doesn't block the main panel
+    moviesApi.getStorageStats()
+      .then((res) => setStorageStats(res.data))
+      .catch((err) => console.warn('Storage stats unavailable:', err?.message));
   }, []);
 
   useEffect(() => {

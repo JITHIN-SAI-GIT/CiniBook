@@ -134,8 +134,8 @@ public class MovieService {
     public MovieResponse create(MovieRequest req) {
         Movie m = Movie.builder()
                 .title(req.getTitle())
-                .genre(req.getGenre())
-                .language(req.getLanguage())
+                .genre(req.getGenre() != null ? req.getGenre() : "General")
+                .language(req.getLanguage() != null ? req.getLanguage() : "Telugu")
                 .duration(req.getDuration() != null ? req.getDuration() : 120)
                 .rating(req.getRating() != null ? req.getRating() : 0.0)
                 .posterUrl(req.getPosterUrl() != null ? req.getPosterUrl() : "")

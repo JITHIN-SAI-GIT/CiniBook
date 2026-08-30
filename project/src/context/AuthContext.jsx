@@ -98,7 +98,7 @@ export function AuthProvider({ children }) {
       });
       return { error: null };
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Google sign-in failed';
+      const msg = err?.response?.data?.message || `Google sign-in failed: ${err.message}`;
       return { error: msg };
     }
   };

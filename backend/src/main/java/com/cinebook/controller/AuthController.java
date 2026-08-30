@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -22,12 +23,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest req) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest req) {
         try {
             return ResponseEntity.ok(authService.login(req));
         } catch (RuntimeException e) {
             if ("EMAIL_NOT_VERIFIED".equals(e.getMessage())) {
-                return ResponseEntity.status(403).body(new AuthResponse(null, null, null, "EMAIL_NOT_VERIFIED", null));
+                // Return a proper {message} field so the frontend can detect EMAIL_NOT_VERIFIED
+                return ResponseEntity.status(403)
+                        .body(Map.of("message", "EMAIL_NOT_VERIFIED"));
             }
             throw e;
         }
@@ -65,6 +68,10 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<AuthResponse> me(Authentication auth) {
+        // Guard against unauthenticated requests (auth is null when no valid JWT is provided)
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(401).build();
+        }
         Long userId = (Long) auth.getCredentials();
         return ResponseEntity.ok(authService.getProfile(userId));
     }
