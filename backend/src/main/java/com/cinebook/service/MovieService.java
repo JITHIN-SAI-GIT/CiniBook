@@ -771,6 +771,7 @@ public class MovieService {
         movie.setStorageProvider(provider);
         movie.setUploadDate(LocalDateTime.now());
         movie.setIsOtt(true);
+        movie.setDownloadEnabled(true); // Automatically enable download upon successful upload
 
         return MovieResponse.from(movieRepository.save(movie));
     }

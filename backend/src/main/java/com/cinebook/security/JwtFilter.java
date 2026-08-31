@@ -49,6 +49,11 @@ public class JwtFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
             return header.substring(7);
         }
+        // Fallback for direct browser downloads (Google Drive proxy)
+        String paramToken = request.getParameter("token");
+        if (StringUtils.hasText(paramToken)) {
+            return paramToken;
+        }
         return null;
     }
 }

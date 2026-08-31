@@ -98,93 +98,16 @@ export const DownloadProvider = ({ children }) => {
 
       const downloadStartTime = Date.now();
 
-      const downloadResponse = await (isRelativeUrl
-        ? // Relative URL (Google Drive proxy) → use fetch with JWT token to the absolute backend URL
-          fetch(absoluteStreamUrl, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('cb_token')}`,
-            },
-          }).then(async (fetchRes) => {
-            if (!fetchRes.ok) throw new Error(`Download failed: ${fetchRes.status}`);
-            
-            const total = parseInt(fetchRes.headers.get('content-length') || movie.fileSize || '0', 10);
-            let loaded = 0;
-            const reader = fetchRes.body.getReader();
-            const chunks = [];
-            
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              chunks.push(value);
-              loaded += value.byteLength;
-              
-              const currentTime = Date.now();
-              const elapsed = (currentTime - downloadStartTime) / 1000;
-              const bytesPerSec = elapsed > 0 ? loaded / elapsed : 0;
-              const remainingBytes = total > 0 ? total - loaded : 0;
-              const eta = (total > 0 && bytesPerSec > 0) ? remainingBytes / bytesPerSec : 0;
-              
-              setDownload((prev) => {
-                if (!prev || prev.movieId !== movie.id) return prev;
-                return {
-                  ...prev,
-                  percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
-                  speed: Math.round(bytesPerSec / 1024),
-                  remaining: Math.round(eta),
-                  loadedBytes: loaded,
-                  totalBytes: total > 0 ? total : loaded,
-                };
-              });
-            }
-            
-            const blob = new Blob(chunks);
-            return { data: blob, status: fetchRes.status };
-          })
-        : // Absolute URL (B2 pre-signed) → use fetch directly (no auth needed for pre-signed)
-          fetch(absoluteStreamUrl).then(async (fetchRes) => {
-            if (!fetchRes.ok) throw new Error(`Download failed: ${fetchRes.status}`);
-            
-            const total = parseInt(fetchRes.headers.get('content-length') || movie.fileSize || '0', 10);
-            let loaded = 0;
-            const reader = fetchRes.body.getReader();
-            const chunks = [];
-            
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              chunks.push(value);
-              loaded += value.byteLength;
-              
-              const currentTime = Date.now();
-              const elapsed = (currentTime - downloadStartTime) / 1000;
-              const bytesPerSec = elapsed > 0 ? loaded / elapsed : 0;
-              const remainingBytes = total > 0 ? total - loaded : 0;
-              const eta = (total > 0 && bytesPerSec > 0) ? remainingBytes / bytesPerSec : 0;
-              
-              setDownload((prev) => {
-                if (!prev || prev.movieId !== movie.id) return prev;
-                return {
-                  ...prev,
-                  percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
-                  speed: Math.round(bytesPerSec / 1024),
-                  remaining: Math.round(eta),
-                  loadedBytes: loaded,
-                  totalBytes: total > 0 ? total : loaded,
-                };
-              });
-            }
-            
-            const blob = new Blob(chunks);
-            return { data: blob, status: fetchRes.status };
-          })
-      );
+      // Use native direct download.
+      // 1. If it's a relative URL (Google Drive proxy), append the JWT token as a query parameter
+      //    so that the backend JwtFilter can authenticate it without the Authorization header.
+      // 2. If it's an absolute URL (B2 presigned URL), direct download works out-of-the-box.
+      const downloadUrl = isRelativeUrl
+        ? `${absoluteStreamUrl}?token=${localStorage.getItem('cb_token') || ''}`
+        : absoluteStreamUrl;
 
-      const blob = downloadResponse.data;
-
-      // Trigger browser download
-      const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = blobUrl;
+      link.href = downloadUrl;
       const mimeToExt = {
         'video/mp4': 'mp4',
         'video/x-matroska': 'mkv',
@@ -198,11 +121,12 @@ export const DownloadProvider = ({ children }) => {
         : mimeToExt[movie.mimeType] || 'mp4';
       
       link.download = `${movie.title.trim().replace(/\s+/g, '_')}_${movie.videoResolution || '1080p'}.${extension}`;
+      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
 
+      // Instantly mark as completed in UI since browser native download manager is now handling it
       setDownload((prev) => {
         if (!prev || prev.movieId !== movie.id) return prev;
         return { ...prev, status: 'completed', percent: 100, xhr: null };
@@ -229,7 +153,7 @@ export const DownloadProvider = ({ children }) => {
         console.error(e);
       }
 
-      toast(`Download completed: ${movie.title}`, 'success');
+      toast(`Download triggered for: ${movie.title}`, 'success');
     } catch (err) {
       console.error('Download error:', err);
 
