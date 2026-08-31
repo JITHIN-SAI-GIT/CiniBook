@@ -776,9 +776,50 @@ public class MovieService {
         return MovieResponse.from(movieRepository.save(movie));
     }
 
+
     private String getExtension(String filename) {
         if (filename == null) return "";
         int idx = filename.lastIndexOf('.');
         return idx == -1 ? "" : filename.substring(idx);
+    }
+
+    /**
+     * Sync the file size from the cloud provider for a movie that has fileSize=0 or null.
+     * This is needed for movies uploaded before the presigned URL flow was in place.
+     */
+    public MovieResponse syncFileSize(Long movieId) {
+        Movie movie = movieRepository.findById(movieId)
+                .orElseThrow(() -> new RuntimeException("Movie not found: " + movieId));
+
+        if (movie.getVideoFileName() == null || movie.getVideoFileName().isBlank()) {
+            throw new RuntimeException("Movie has no video file to sync.");
+        }
+
+        String provider = movie.getStorageProvider();
+        long actualSize = -1L;
+
+        try {
+            if ("backblaze_b2".equals(provider)) {
+                com.cinebook.service.storage.BackblazeB2StorageProvider b2 =
+                        (com.cinebook.service.storage.BackblazeB2StorageProvider) storageManager.getProvider("backblaze_b2");
+                actualSize = b2.getFileSize(movie.getVideoFileName());
+            } else if ("google_drive".equals(provider)) {
+                com.cinebook.service.storage.GoogleDriveStorageProvider gdrive =
+                        (com.cinebook.service.storage.GoogleDriveStorageProvider) storageManager.getProvider("google_drive");
+                actualSize = gdrive.getFileSize(movie.getVideoFileName());
+            }
+        } catch (Exception e) {
+            log.error("Failed to sync file size for movieId={}: {}", movieId, e.getMessage(), e);
+            throw new RuntimeException("Could not fetch file size from cloud: " + e.getMessage(), e);
+        }
+
+        if (actualSize <= 0) {
+            throw new RuntimeException("Cloud returned size=" + actualSize + ". File may not exist or provider error.");
+        }
+
+        movie.setFileSize(actualSize);
+        movie.setDownloadEnabled(true);
+        log.info("Synced file size for movieId={}: {} bytes from provider={}", movieId, actualSize, provider);
+        return MovieResponse.from(movieRepository.save(movie));
     }
 }

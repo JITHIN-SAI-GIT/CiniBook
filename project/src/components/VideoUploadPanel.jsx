@@ -331,8 +331,26 @@ export default function VideoUploadPanel({
               </p>
             )}
           </div>
-          {/* Replace / Delete buttons */}
+          {/* Action buttons */}
           <div className="flex gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  toast('Syncing file size from cloud...', 'info');
+                  const res = await moviesApi.syncFileSize(movieId);
+                  setMovieDetails(res.data);
+                  onUpdated();
+                  toast('File size synced and downloads enabled', 'success');
+                } catch (e) {
+                  toast('Failed to sync size: ' + (e?.response?.data?.message || e.message), 'error');
+                }
+              }}
+              title="Sync File Size & Enable Downloads"
+              className="text-yellow-400 hover:text-yellow-300 p-1 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading || deleting}

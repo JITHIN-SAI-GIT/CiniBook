@@ -307,6 +307,37 @@ public class GoogleDriveStorageProvider implements StorageProvider {
         return "/api/movies/google-stream/" + fileId;
     }
 
+    /** Fetch the actual byte size of a Google Drive file via metadata API (no download). */
+    public long getFileSize(String fileId) {
+        try {
+            String token = getAccessToken();
+            java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                    .uri(URI.create("https://www.googleapis.com/drive/v3/files/" + fileId + "?fields=size"))
+                    .header("Authorization", "Bearer " + token)
+                    .GET()
+                    .build();
+            java.net.http.HttpResponse<String> response = httpClient.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                String body = response.body();
+                // Parse "size" field from JSON: {"size": "1234567"}
+                int idx = body.indexOf("\"size\"");
+                if (idx != -1) {
+                    int colon = body.indexOf(":", idx);
+                    int start = body.indexOf("\"", colon + 1) + 1;
+                    int end = body.indexOf("\"", start);
+                    if (start > 0 && end > start) {
+                        return Long.parseLong(body.substring(start, end).trim());
+                    }
+                }
+            }
+            log.warn("Could not get size for Google Drive fileId={}: status={}", fileId, response.statusCode());
+            return -1L;
+        } catch (Exception e) {
+            log.warn("Failed to get Google Drive file size for {}: {}", fileId, e.getMessage());
+            return -1L;
+        }
+    }
+
     @Override
     public String generateUploadUrl(String path, String contentType) throws Exception {
         String token = getAccessToken();

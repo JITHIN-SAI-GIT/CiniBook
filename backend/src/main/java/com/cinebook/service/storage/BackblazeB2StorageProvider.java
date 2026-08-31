@@ -589,6 +589,20 @@ public class BackblazeB2StorageProvider implements StorageProvider {
         return uploadFile(file, path);
     }
 
+    /** Fetch the actual byte size of an object in B2 without downloading it. */
+    public long getFileSize(String objectKey) {
+        try {
+            HeadObjectRequest req = HeadObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .build();
+            return s3Client.headObject(req).contentLength();
+        } catch (Exception e) {
+            log.warn("Could not fetch file size for key={}: {}", objectKey, e.getMessage());
+            return -1L;
+        }
+    }
+
     @Override
     public String getPublicUrl(String fileId) {
         String base = endpoint;

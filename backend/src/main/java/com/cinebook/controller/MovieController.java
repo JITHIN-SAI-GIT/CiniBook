@@ -202,6 +202,14 @@ public class MovieController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/{id}/sync-file-size")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<com.cinebook.dto.MovieResponse> syncFileSize(@PathVariable Long id) {
+        log.info("Admin sync file size request for movieId={}", id);
+        com.cinebook.dto.MovieResponse result = movieService.syncFileSize(id);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/google-stream/**")
     public void streamGoogleDriveFile(
             jakarta.servlet.http.HttpServletRequest request,

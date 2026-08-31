@@ -408,7 +408,10 @@ export default function OttMovieDetail() {
               <div className="grid grid-cols-3 gap-4 border-b border-white/5 pb-4 text-sm">
                 <span className="text-gray-500">Download File Size</span>
                 <span className="col-span-2 text-white font-mono font-medium">
-                  {formatBytes(movie.fileSize || 0)}
+                  {movie.fileSize && movie.fileSize > 0
+                    ? formatBytes(movie.fileSize)
+                    : <span className="text-yellow-400 text-xs">Re-upload to sync size</span>
+                  }
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-4 text-sm">

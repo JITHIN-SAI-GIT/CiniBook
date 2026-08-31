@@ -205,6 +205,8 @@ export const moviesApi = {
     return { success: true, ...confirmRes.data };
   },
 
+  syncFileSize: (id) => api.post(`/movies/${id}/sync-file-size`),
+
   deleteVideo: (id) => api.delete(`/movies/${id}/video`),
   getStorageStats: () => api.get('/movies/storage/stats'),
 };
