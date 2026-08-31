@@ -131,37 +131,69 @@ export const moviesApi = {
     }),
 
   uploadVideo: async (id, file, provider, onProgress) => {
-    const formData = new FormData();
-    formData.append('file', file);
+    // ── STEP 1: Ask backend for a presigned upload URL ──
+    onProgress?.({ percent: 0, speed: 0, remaining: 0, status: 'preparing', provider: provider || 'auto', retryCount: 0 });
 
-    const params = provider ? { provider } : {};
+    const presignRes = await api.get(`/movies/${id}/presigned-upload-url`, {
+      params: {
+        fileName: file.name,
+        contentType: file.type || 'video/mp4',
+        fileSize: file.size,
+        provider: provider || undefined,
+      },
+      timeout: 30000,
+    });
 
+    const { uploadUrl, objectKey, provider: resolvedProvider } = presignRes.data;
+
+    // ── STEP 2: Upload the file directly to the cloud (bypasses Render) ──
     const uploadStartTime = Date.now();
 
-    const res = await api.post(`/movies/${id}/video`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      params,
-      timeout: 0, // No timeout for large uploads
-      onUploadProgress: (progressEvent) => {
-        if (!progressEvent.total) return;
-        const elapsed = (Date.now() - uploadStartTime) / 1000;
-        const bytesPerSec = elapsed > 0 ? progressEvent.loaded / elapsed : 0;
-        const remaining = bytesPerSec > 0 ? (progressEvent.total - progressEvent.loaded) / bytesPerSec : 0;
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl, true);
+      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
 
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const elapsed = (Date.now() - uploadStartTime) / 1000;
+        const bytesPerSec = elapsed > 0 ? e.loaded / elapsed : 0;
+        const remaining = bytesPerSec > 0 ? (e.total - e.loaded) / bytesPerSec : 0;
         onProgress?.({
-          percent: Math.min(Math.round((progressEvent.loaded / progressEvent.total) * 100), 100),
+          percent: Math.min(Math.round((e.loaded / e.total) * 100), 99),
           speed: Math.round(bytesPerSec / 1024),
           remaining: Math.round(remaining),
           status: 'uploading',
-          provider: provider || 'auto',
+          provider: resolvedProvider || provider || 'auto',
           retryCount: 0,
         });
-      },
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Direct cloud upload failed: HTTP ${xhr.status} ${xhr.statusText}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error during direct cloud upload'));
+      xhr.ontimeout = () => reject(new Error('Upload timed out'));
+      xhr.send(file);
     });
 
-    onProgress?.({ percent: 100, speed: 0, remaining: 0, status: 'completed', provider: provider || 'auto', retryCount: 0 });
+    // ── STEP 3: Confirm upload with the backend ──
+    onProgress?.({ percent: 99, speed: 0, remaining: 0, status: 'confirming', provider: resolvedProvider || provider || 'auto', retryCount: 0 });
 
-    return { success: true, ...res.data };
+    const confirmRes = await api.post(`/movies/${id}/confirm-upload`, {
+      objectKey,
+      fileSize: file.size,
+      contentType: file.type || 'video/mp4',
+      provider: resolvedProvider,
+    });
+
+    onProgress?.({ percent: 100, speed: 0, remaining: 0, status: 'completed', provider: resolvedProvider || provider || 'auto', retryCount: 0 });
+
+    return { success: true, ...confirmRes.data };
   },
 
   deleteVideo: (id) => api.delete(`/movies/${id}/video`),

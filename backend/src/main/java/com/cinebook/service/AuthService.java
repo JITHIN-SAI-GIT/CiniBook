@@ -171,7 +171,11 @@ public class AuthService {
             String[] parts = req.getToken().split("\\.");
             if (parts.length != 3) throw new RuntimeException("Invalid token");
             
-            String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+            String payloadB64 = parts[1];
+            // Google JWT payloads may lack Base64 padding — add it to avoid IllegalArgumentException
+            int paddingNeeded = (4 - payloadB64.length() % 4) % 4;
+            payloadB64 = payloadB64 + "=".repeat(paddingNeeded);
+            String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(payloadB64));
             com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             com.fasterxml.jackson.databind.JsonNode payload = mapper.readTree(payloadJson);
             

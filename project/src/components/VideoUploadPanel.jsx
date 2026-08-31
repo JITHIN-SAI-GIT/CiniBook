@@ -396,15 +396,19 @@ export default function VideoUploadPanel({
               <span className="text-sm font-semibold text-white">
                 {progress.status === 'retrying'
                   ? `Retrying (attempt ${progress.retryCount || 1})...`
-                  : `Uploading to ${progress.provider === 'google_drive'
-                      ? 'Google Drive'
-                      : progress.provider === 'backblaze_b2'
-                        ? 'Backblaze B2'
-                        : selectedProvider === 'google_drive'
+                  : progress.status === 'preparing'
+                    ? 'Preparing upload...'
+                    : progress.status === 'confirming'
+                      ? 'Confirming with server...'
+                      : `Uploading to ${progress.provider === 'google_drive'
                           ? 'Google Drive'
-                          : selectedProvider === 'backblaze_b2'
+                          : progress.provider === 'backblaze_b2'
                             ? 'Backblaze B2'
-                            : 'Selected Cloud Server'}...`}
+                            : selectedProvider === 'google_drive'
+                              ? 'Google Drive'
+                              : selectedProvider === 'backblaze_b2'
+                                ? 'Backblaze B2'
+                                : 'Selected Cloud Server'}...`}
               </span>
             </div>
             <span className="text-sm font-bold text-[#ffd60a]">
