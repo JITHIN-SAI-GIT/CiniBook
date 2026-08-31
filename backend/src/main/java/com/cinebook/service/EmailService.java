@@ -54,11 +54,21 @@ public class EmailService {
             );
 
             helper.setText(htmlContent, true);
-            mailSender.send(message);
-            log.info("OTP Email sent successfully to {}", to);
+            
+            // Run mail sending in a background thread so SMTP timeouts don't block the main signup request.
+            // This ensures the API responds immediately, and the developer can read the OTP from OTP_CODE.txt locally.
+            new Thread(() -> {
+                try {
+                    mailSender.send(message);
+                    log.info("OTP Email sent successfully to {}", to);
+                } catch (Exception mailEx) {
+                    log.error("Background email sending failed to {}. Dev OTP code was: {}. Error: {}", to, otp, mailEx.getMessage());
+                }
+            }, "Email-Sender-Thread").start();
+            
         } catch (Exception e) {
-            log.error("Failed to send email to {}. Dev OTP code is: {}", to, otp, e);
-            throw new RuntimeException("Email sending failed: " + e.getMessage(), e);
+            log.error("Failed to prepare email to {}. Dev OTP code is: {}", to, otp, e);
+            throw new RuntimeException("Email preparation failed: " + e.getMessage(), e);
         }
     }
 }

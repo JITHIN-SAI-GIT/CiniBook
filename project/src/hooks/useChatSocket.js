@@ -33,15 +33,14 @@ export function useChatSocket() {
             wsUrl = '/ws-chat';
           }
         }
-        // Only use transports that work through the proxy — skip xhr-streaming/xhr-polling
-        // which trigger 403s from the Render backend's CORS policy
-        return new SockJS(wsUrl, null, { transports: ['websocket', 'eventsource'] });
+        // Use websocket-only transport to avoid SockJS xhr_send fallbacks that get 403'd by CORS
+        return new SockJS(wsUrl, null, { transports: ['websocket'] });
       },
       connectHeaders: {
         Authorization: `Bearer ${localStorage.getItem('cb_token') || ''}`,
       },
       debug: function (str) {},
-      reconnectDelay: 5000,
+      reconnectDelay: 30000, // 30s between retries — prevents flooding network with 403s
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
     });

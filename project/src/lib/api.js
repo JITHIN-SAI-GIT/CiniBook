@@ -6,14 +6,23 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://cinebook-backend-
 // from relative paths returned by the backend (e.g., Google Drive proxy URLs).
 export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
 
-// ── Request timeout (15 seconds) ──────────────────────────────────────────────
-const REQUEST_TIMEOUT = 15000;
+// ── Request timeout ───────────────────────────────────────────────────────────
+// Render free tier cold-starts can take 30-60s, so we need generous timeouts.
+const REQUEST_TIMEOUT = 60000; // 60s default
+const AUTH_TIMEOUT = 90000;    // 90s for auth (signup sends email which is slow)
 
 export const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
   timeout: REQUEST_TIMEOUT,
 });
+
+// ── Pre-warm the backend on page load ─────────────────────────────────────────
+// Fire a lightweight GET to wake up the Render backend immediately so that
+// subsequent user actions (login, signup, browsing) don't hit a cold start.
+if (typeof window !== 'undefined') {
+  fetch(`${API_BASE.replace(/\/api\/?$/, '')}/api/health`, { method: 'GET', mode: 'cors' }).catch(() => {});
+}
 
 // ── In-flight request deduplication ───────────────────────────────────────────
 const inflightRequests = new Map();
@@ -93,15 +102,15 @@ function withRetry(fn, retries = 2, delay = 1000) {
 // ---- Auth ----
 export const authApi = {
   signup: (email, password, fullName) =>
-    api.post('/auth/signup', { email, password, fullName }),
-  login: (email, password) => api.post('/auth/login', { email, password }),
+    api.post('/auth/signup', { email, password, fullName }, { timeout: AUTH_TIMEOUT }),
+  login: (email, password) => api.post('/auth/login', { email, password }, { timeout: AUTH_TIMEOUT }),
   me: () => api.get('/auth/me'),
-  verifyOtp: (data) => api.post('/auth/verify-email-otp', data),
-  resendOtp: (data) => api.post('/auth/resend-email-otp', data),
-  forgotPassword: (data) => api.post('/auth/forgot-password', data),
+  verifyOtp: (data) => api.post('/auth/verify-email-otp', data, { timeout: AUTH_TIMEOUT }),
+  resendOtp: (data) => api.post('/auth/resend-email-otp', data, { timeout: AUTH_TIMEOUT }),
+  forgotPassword: (data) => api.post('/auth/forgot-password', data, { timeout: AUTH_TIMEOUT }),
   resetPassword: (email, otp, newPassword) =>
-    api.post('/auth/reset-password', { email, otp, newPassword }),
-  googleLogin: (token) => api.post('/auth/google', { token }),
+    api.post('/auth/reset-password', { email, otp, newPassword }, { timeout: AUTH_TIMEOUT }),
+  googleLogin: (token) => api.post('/auth/google', { token }, { timeout: AUTH_TIMEOUT }),
 };
 
 // ---- Movies ----
