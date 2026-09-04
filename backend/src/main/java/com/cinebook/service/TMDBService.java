@@ -225,37 +225,30 @@ public class TMDBService {
     public Map<String, Object> getHomepageBundle() {
         if (!isConfigured()) return Map.of("error", "TMDB API Key not configured");
         
+        java.util.concurrent.CompletableFuture<Map<String, Object>> nowPlayingFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try { return getNowPlaying(1); } catch (Exception e) { log.warn("nowPlaying failed", e); return Map.of("results", List.of()); }
+        });
+        java.util.concurrent.CompletableFuture<Map<String, Object>> trendingFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try { return getTrending(); } catch (Exception e) { log.warn("trending failed", e); return Map.of("results", List.of()); }
+        });
+        java.util.concurrent.CompletableFuture<Map<String, Object>> popularFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try { return getPopular(1); } catch (Exception e) { log.warn("popular failed", e); return Map.of("results", List.of()); }
+        });
+        java.util.concurrent.CompletableFuture<Map<String, Object>> upcomingFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try { return getUpcoming(1); } catch (Exception e) { log.warn("upcoming failed", e); return Map.of("results", List.of()); }
+        });
+        java.util.concurrent.CompletableFuture<Map<String, Object>> topRatedFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try { return getTopRated(1); } catch (Exception e) { log.warn("topRated failed", e); return Map.of("results", List.of()); }
+        });
+
+        java.util.concurrent.CompletableFuture.allOf(nowPlayingFuture, trendingFuture, popularFuture, upcomingFuture, topRatedFuture).join();
+
         Map<String, Object> bundle = new java.util.HashMap<>();
-        try {
-            bundle.put("nowPlaying", getNowPlaying(1));
-        } catch (Exception e) {
-            log.warn("Homepage bundle: nowPlaying failed: {}", e.getMessage());
-            bundle.put("nowPlaying", Map.of("results", List.of()));
-        }
-        try {
-            bundle.put("trending", getTrending());
-        } catch (Exception e) {
-            log.warn("Homepage bundle: trending failed: {}", e.getMessage());
-            bundle.put("trending", Map.of("results", List.of()));
-        }
-        try {
-            bundle.put("popular", getPopular(1));
-        } catch (Exception e) {
-            log.warn("Homepage bundle: popular failed: {}", e.getMessage());
-            bundle.put("popular", Map.of("results", List.of()));
-        }
-        try {
-            bundle.put("upcoming", getUpcoming(1));
-        } catch (Exception e) {
-            log.warn("Homepage bundle: upcoming failed: {}", e.getMessage());
-            bundle.put("upcoming", Map.of("results", List.of()));
-        }
-        try {
-            bundle.put("topRated", getTopRated(1));
-        } catch (Exception e) {
-            log.warn("Homepage bundle: topRated failed: {}", e.getMessage());
-            bundle.put("topRated", Map.of("results", List.of()));
-        }
+        bundle.put("nowPlaying", nowPlayingFuture.join());
+        bundle.put("trending", trendingFuture.join());
+        bundle.put("popular", popularFuture.join());
+        bundle.put("upcoming", upcomingFuture.join());
+        bundle.put("topRated", topRatedFuture.join());
         return bundle;
     }
 

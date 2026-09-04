@@ -751,6 +751,31 @@ public class MovieService {
             throw new IllegalArgumentException("objectKey is required");
         }
 
+        // Verify the file actually exists on the cloud provider before committing to the database
+        long actualSize = -1;
+        try {
+            if ("backblaze_b2".equals(provider)) {
+                com.cinebook.service.storage.BackblazeB2StorageProvider b2 =
+                        (com.cinebook.service.storage.BackblazeB2StorageProvider) storageManager.getProvider("backblaze_b2");
+                actualSize = b2.getFileSize(objectKey);
+            } else if ("google_drive".equals(provider)) {
+                com.cinebook.service.storage.GoogleDriveStorageProvider gdrive =
+                        (com.cinebook.service.storage.GoogleDriveStorageProvider) storageManager.getProvider("google_drive");
+                actualSize = gdrive.getFileSize(objectKey);
+            }
+        } catch (Exception e) {
+            log.error("Failed to verify uploaded file size for objectKey={}: {}", objectKey, e.getMessage());
+        }
+
+        if (actualSize <= 0) {
+            throw new RuntimeException("Upload verification failed: Could not retrieve file from " + provider + " for key: " + objectKey);
+        }
+
+        // Use the actual size from the cloud provider if the payload size is 0 or missing
+        if (fileSize <= 0) {
+            fileSize = actualSize;
+        }
+
         // Delete existing video if different key
         if (movie.getVideoFileName() != null && !movie.getVideoFileName().equals(objectKey)) {
             try {

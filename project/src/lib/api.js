@@ -158,43 +158,128 @@ export const moviesApi = {
     // ── STEP 2: Upload the file directly to the cloud (bypasses Render) ──
     const uploadStartTime = Date.now();
 
-    await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', uploadUrl, true);
-      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+    const finalObjectKey = await new Promise(async (resolve, reject) => {
+      if (resolvedProvider === 'google_drive') {
+        const chunkSize = 10 * 1024 * 1024; // 10MB chunks
+        let offset = 0;
+        let fileId = null;
 
-      xhr.upload.onprogress = (e) => {
-        if (!e.lengthComputable) return;
-        const elapsed = (Date.now() - uploadStartTime) / 1000;
-        const bytesPerSec = elapsed > 0 ? e.loaded / elapsed : 0;
-        const remaining = bytesPerSec > 0 ? (e.total - e.loaded) / bytesPerSec : 0;
-        onProgress?.({
-          percent: Math.min(Math.round((e.loaded / e.total) * 100), 99),
-          speed: Math.round(bytesPerSec / 1024),
-          remaining: Math.round(remaining),
-          status: 'uploading',
-          provider: resolvedProvider || provider || 'auto',
-          retryCount: 0,
-        });
-      };
+        const uploadChunk = (retryCount = 0) => {
+          return new Promise((resChunk, rejChunk) => {
+            const chunkEnd = Math.min(offset + chunkSize, file.size);
+            const chunk = file.slice(offset, chunkEnd);
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', uploadUrl, true);
+            xhr.setRequestHeader('Content-Range', `bytes ${offset}-${chunkEnd - 1}/${file.size}`);
 
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-        } else {
-          reject(new Error(`Direct cloud upload failed: HTTP ${xhr.status} ${xhr.statusText}`));
+            xhr.upload.onprogress = (e) => {
+              if (!e.lengthComputable) return;
+              const totalLoaded = offset + e.loaded;
+              const elapsed = (Date.now() - uploadStartTime) / 1000;
+              const bytesPerSec = elapsed > 0 ? totalLoaded / elapsed : 0;
+              const remaining = bytesPerSec > 0 ? (file.size - totalLoaded) / bytesPerSec : 0;
+              onProgress?.({
+                percent: Math.min(Math.round((totalLoaded / file.size) * 100), 99),
+                speed: Math.round(bytesPerSec / 1024),
+                remaining: Math.round(remaining),
+                status: 'uploading',
+                provider: resolvedProvider || provider || 'auto',
+                retryCount,
+              });
+            };
+
+            xhr.onload = () => {
+              if (xhr.status === 308) {
+                const range = xhr.getResponseHeader('Range');
+                if (range) {
+                  offset = parseInt(range.split('-')[1], 10) + 1;
+                } else {
+                  offset = chunkEnd;
+                }
+                resChunk(false);
+              } else if (xhr.status === 200 || xhr.status === 201) {
+                try {
+                  const response = JSON.parse(xhr.responseText);
+                  fileId = response.id;
+                  resChunk(true);
+                } catch (err) {
+                  rejChunk(new Error('Failed to parse Google Drive response'));
+                }
+              } else {
+                if (retryCount < 3) {
+                  console.warn(`Chunk upload failed with ${xhr.status}, retrying...`);
+                  setTimeout(() => resChunk('retry'), 2000 * (retryCount + 1));
+                } else {
+                  rejChunk(new Error(`Chunk upload failed: HTTP ${xhr.status}`));
+                }
+              }
+            };
+            xhr.onerror = () => {
+              if (retryCount < 3) {
+                setTimeout(() => resChunk('retry'), 2000 * (retryCount + 1));
+              } else {
+                rejChunk(new Error('Network error during chunk upload'));
+              }
+            };
+            xhr.send(chunk);
+          });
+        };
+
+        try {
+          while (offset < file.size) {
+            let result = 'retry';
+            let retries = 0;
+            while (result === 'retry' && retries <= 3) {
+              result = await uploadChunk(retries);
+              if (result === 'retry') retries++;
+            }
+            if (result === true) {
+              resolve(fileId);
+              return;
+            }
+          }
+          resolve(fileId);
+        } catch (err) {
+          reject(err);
         }
-      };
-      xhr.onerror = () => reject(new Error('Network error during direct cloud upload'));
-      xhr.ontimeout = () => reject(new Error('Upload timed out'));
-      xhr.send(file);
+      } else {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl, true);
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+
+        xhr.upload.onprogress = (e) => {
+          if (!e.lengthComputable) return;
+          const elapsed = (Date.now() - uploadStartTime) / 1000;
+          const bytesPerSec = elapsed > 0 ? e.loaded / elapsed : 0;
+          const remaining = bytesPerSec > 0 ? (e.total - e.loaded) / bytesPerSec : 0;
+          onProgress?.({
+            percent: Math.min(Math.round((e.loaded / e.total) * 100), 99),
+            speed: Math.round(bytesPerSec / 1024),
+            remaining: Math.round(remaining),
+            status: 'uploading',
+            provider: resolvedProvider || provider || 'auto',
+            retryCount: 0,
+          });
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(objectKey);
+          } else {
+            reject(new Error(`Direct cloud upload failed: HTTP ${xhr.status} ${xhr.statusText}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network error during direct cloud upload'));
+        xhr.ontimeout = () => reject(new Error('Upload timed out'));
+        xhr.send(file);
+      }
     });
 
     // ── STEP 3: Confirm upload with the backend ──
     onProgress?.({ percent: 99, speed: 0, remaining: 0, status: 'confirming', provider: resolvedProvider || provider || 'auto', retryCount: 0 });
 
     const confirmRes = await api.post(`/movies/${id}/confirm-upload`, {
-      objectKey,
+      objectKey: finalObjectKey,
       fileSize: file.size,
       contentType: file.type || 'video/mp4',
       provider: resolvedProvider,

@@ -249,15 +249,25 @@ public class MovieController {
             
             response.setStatus(statusCode);
             
+            String downloadParam = request.getParameter("download");
+            String filenameParam = request.getParameter("filename");
+
             googleResponse.headers().map().forEach((key, values) -> {
                 if (key.equalsIgnoreCase("Content-Type") || 
                     key.equalsIgnoreCase("Content-Range") || 
                     key.equalsIgnoreCase("Accept-Ranges") ||
-                    key.equalsIgnoreCase("Content-Disposition") ||
                     key.equalsIgnoreCase("Content-Length")) {
                     values.forEach(val -> response.setHeader(key, val));
                 }
+                if (key.equalsIgnoreCase("Content-Disposition") && !"true".equals(downloadParam)) {
+                    values.forEach(val -> response.setHeader(key, val));
+                }
             });
+
+            if ("true".equals(downloadParam)) {
+                String dispositionFilename = (filenameParam != null && !filenameParam.isBlank()) ? filenameParam : "movie.mp4";
+                response.setHeader("Content-Disposition", "attachment; filename=\"" + dispositionFilename + "\"");
+            }
             
             long bytesStreamed = 0;
             try (java.io.InputStream in = googleResponse.body();

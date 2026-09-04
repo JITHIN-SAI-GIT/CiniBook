@@ -102,12 +102,6 @@ export const DownloadProvider = ({ children }) => {
       // 1. If it's a relative URL (Google Drive proxy), append the JWT token as a query parameter
       //    so that the backend JwtFilter can authenticate it without the Authorization header.
       // 2. If it's an absolute URL (B2 presigned URL), direct download works out-of-the-box.
-      const downloadUrl = isRelativeUrl
-        ? `${absoluteStreamUrl}?token=${localStorage.getItem('cb_token') || ''}`
-        : absoluteStreamUrl;
-
-      const link = document.createElement('a');
-      link.href = downloadUrl;
       const mimeToExt = {
         'video/mp4': 'mp4',
         'video/x-matroska': 'mkv',
@@ -120,13 +114,22 @@ export const DownloadProvider = ({ children }) => {
         ? movie.videoFileName.split('.').pop()
         : mimeToExt[movie.mimeType] || 'mp4';
       
-      link.download = `${movie.title.trim().replace(/\s+/g, '_')}_${movie.videoResolution || '1080p'}.${extension}`;
+      const fileName = `${movie.title.trim().replace(/\\s+/g, '_')}_${movie.videoResolution || '1080p'}.${extension}`;
+
+      const downloadUrl = isRelativeUrl
+        ? `${absoluteStreamUrl}?token=${localStorage.getItem('cb_token') || ''}&download=true&filename=${encodeURIComponent(fileName)}`
+        : absoluteStreamUrl;
+
+      // Use native browser download for ALL providers (Google Drive and B2).
+      // Axios buffers Blob into memory, which crashes the browser for large files (1GB+ movies).
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      // Instantly mark as completed in UI since browser native download manager is now handling it
       setDownload((prev) => {
         if (!prev || prev.movieId !== movie.id) return prev;
         return { ...prev, status: 'completed', percent: 100, xhr: null };
@@ -134,9 +137,7 @@ export const DownloadProvider = ({ children }) => {
       setDownloadStatuses((prev) => ({ ...prev, [movie.id]: 'completed' }));
 
       if (profile?.id) {
-        watchHistoryApi
-          .saveProgress(profile.id, movie.id, 120)
-          .catch(console.error);
+        watchHistoryApi.saveProgress(profile.id, movie.id, 120).catch(console.error);
       }
 
       try {
@@ -144,18 +145,17 @@ export const DownloadProvider = ({ children }) => {
         const ids = saved ? JSON.parse(saved) : [];
         if (!ids.includes(movie.id)) {
           ids.push(movie.id);
-          localStorage.setItem(
-            'cinebook_downloaded_movies',
-            JSON.stringify(ids)
-          );
+          localStorage.setItem('cinebook_downloaded_movies', JSON.stringify(ids));
         }
-      } catch (e) {
-        console.error(e);
-      }
-
+      } catch (e) { console.error(e); }
       toast(`Download triggered for: ${movie.title}`, 'success');
     } catch (err) {
       console.error('Download error:', err);
+      handleDownloadError(forceProvider, movie);
+    }
+  };
+
+  const handleDownloadError = (forceProvider, movie) => {
 
       // Try fallback provider if this was the first attempt
       const currentProvider =
@@ -180,7 +180,6 @@ export const DownloadProvider = ({ children }) => {
           'error'
         );
       }
-    }
   };
 
   const handleRetry = () => {
