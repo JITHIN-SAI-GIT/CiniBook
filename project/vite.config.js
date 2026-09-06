@@ -6,24 +6,17 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Proxy all /api requests to the Render backend (bypasses CORS)
+      // Proxy all /api requests to the LOCAL Spring Boot backend
       '/api': {
-        target: 'https://cinebook-backend-6e0a.onrender.com',
+        target: 'http://localhost:8080',
         changeOrigin: true,
-        secure: true,
-        configure: (proxy, _options) => {
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
-            // Strip the Origin header so Render's Spring backend doesn't apply CORS 
-            // and block localhost requests with a 403 Forbidden.
-            proxyReq.removeHeader('origin');
-          });
-        }
+        secure: false,
       },
-      // Proxy WebSocket chat endpoint
+      // Proxy WebSocket chat endpoint to local backend
       '/ws-chat': {
-        target: 'https://cinebook-backend-6e0a.onrender.com',
+        target: 'http://localhost:8080',
         changeOrigin: true,
-        secure: true,
+        secure: false,
         ws: true,
       },
     },

@@ -1,15 +1,14 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://cinebook-backend-6e0a.onrender.com/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Derive the backend origin (without /api suffix) for constructing absolute URLs
 // from relative paths returned by the backend (e.g., Google Drive proxy URLs).
 export const API_ORIGIN = API_BASE.replace(/\/api\/?$/, '');
 
 // ── Request timeout ───────────────────────────────────────────────────────────
-// Render free tier cold-starts can take 30-60s, so we need generous timeouts.
-const REQUEST_TIMEOUT = 60000; // 60s default
-const AUTH_TIMEOUT = 90000;    // 90s for auth (signup sends email which is slow)
+const REQUEST_TIMEOUT = 15000; // 15s default (local backend)
+const AUTH_TIMEOUT = 30000;    // 30s for auth (signup sends email which can be slow)
 
 export const api = axios.create({
   baseURL: API_BASE,
@@ -18,10 +17,9 @@ export const api = axios.create({
 });
 
 // ── Pre-warm the backend on page load ─────────────────────────────────────────
-// Fire a lightweight GET to wake up the Render backend immediately so that
-// subsequent user actions (login, signup, browsing) don't hit a cold start.
+// Fire a lightweight GET to warm up the backend connection pool.
 if (typeof window !== 'undefined') {
-  fetch(`${API_BASE.replace(/\/api\/?$/, '')}/api/health`, { method: 'GET', mode: 'cors' }).catch(() => {});
+  fetch('/api/health', { method: 'GET' }).catch(() => {});
 }
 
 // ── In-flight request deduplication ───────────────────────────────────────────
