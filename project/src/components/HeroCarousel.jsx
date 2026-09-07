@@ -232,12 +232,12 @@ export default function HeroCarousel({
               <p className="text-base text-gray-300 mb-8 line-clamp-3 max-w-xl leading-relaxed">
                 {movie.synopsis}
               </p>
-              <div className="flex items-center justify-center md:justify-start gap-4 flex-wrap relative">
+              <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-3 md:gap-4 flex-wrap relative">
                 <button
                   onClick={() => navigate(`/ott/movie/${movie.id}`)}
-                  className="bg-white text-black flex items-center gap-2 !px-8 !py-4 text-base rounded-xl font-bold transition-all hover:bg-gray-200 hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                  className="bg-white w-full sm:w-auto text-black flex items-center justify-center gap-2 px-4 py-3 md:px-8 md:py-4 text-sm md:text-base rounded-xl font-bold transition-all hover:bg-gray-200 hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
                 >
-                  <Play className="w-5 h-5 fill-current" /> Watch Now
+                  <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" /> Watch Now
                 </button>
                 {videoId && (
                   <button
@@ -249,36 +249,36 @@ export default function HeroCarousel({
                         onSelectMovie(movie);
                       }
                     }}
-                    className="btn-primary flex items-center gap-2 !px-8 !py-4 text-base rounded-xl transition-all shadow-[0_0_20px_rgba(230,57,70,0.4)] hover:shadow-[0_0_30px_rgba(230,57,70,0.6)] hover:scale-105 active:scale-95"
+                    className="btn-primary w-full sm:w-auto flex justify-center items-center gap-2 px-4 py-3 md:px-8 md:py-4 text-sm md:text-base rounded-xl transition-all shadow-[0_0_20px_rgba(230,57,70,0.4)] hover:shadow-[0_0_30px_rgba(230,57,70,0.6)] hover:scale-105 active:scale-95"
                   >
-                    <Play className="w-5 h-5 fill-current" /> Play Trailer
+                    <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" /> Play Trailer
                   </button>
                 )}
                 {!!(movie.videoFileName || movie.streamUrl) && (
                   <button
                     onClick={() => startDownload(movie)}
-                    className="btn-ghost flex items-center gap-2 !px-8 !py-4 text-base rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md transition-all hover:scale-105"
+                    className="btn-ghost w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-3 md:px-8 md:py-4 text-sm md:text-base rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md transition-all hover:scale-105"
                   >
                     {downloadStatuses[movie.id] === 'completed' ? (
                       <>
-                        <Check className="w-5 h-5 text-green-400" /> Saved
+                        <Check className="w-4 h-4 md:w-5 md:h-5 text-green-400" /> Saved
                         Offline
                       </>
                     ) : downloadStatuses[movie.id] === 'downloading' ? (
                       <>
-                        <Loader2 className="w-5 h-5 animate-spin" />{' '}
+                        <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />{' '}
                         Downloading...
                       </>
                     ) : (
                       <>
-                        <Download className="w-5 h-5" /> Download Movie
+                        <Download className="w-4 h-4 md:w-5 md:h-5" /> Download Movie
                       </>
                     )}
                   </button>
                 )}
                 <button
                   onClick={() => handleToggleWatchlist(movie.id)}
-                  className={`btn-ghost flex items-center gap-2 !px-6 !py-4 text-base rounded-xl backdrop-blur-md transition-all hover:scale-105 ${
+                  className={`btn-ghost w-full sm:w-auto justify-center flex items-center gap-2 px-4 py-3 md:px-6 md:py-4 text-sm md:text-base rounded-xl backdrop-blur-md transition-all hover:scale-105 ${
                     watchlistIds.includes(movie.id)
                       ? 'bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30'
                       : 'bg-black/40 hover:bg-black/60 text-white border border-white/10'
@@ -286,11 +286,11 @@ export default function HeroCarousel({
                 >
                   {watchlistIds.includes(movie.id) ? (
                     <>
-                      <X className="w-5 h-5" /> Remove
+                      <X className="w-4 h-4 md:w-5 md:h-5" /> Remove
                     </>
                   ) : (
                     <>
-                      <Plus className="w-5 h-5" /> My List
+                      <Plus className="w-4 h-4 md:w-5 md:h-5" /> My List
                     </>
                   )}
                 </button>
@@ -460,7 +460,7 @@ export default function HeroCarousel({
             {movie.synopsis}
           </p>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Link
               to={`/movie/${movie.id}`}
               className="btn-primary !rounded-xl px-6 py-2.5"
@@ -477,7 +477,7 @@ export default function HeroCarousel({
                 </button>
                 <button
                   onClick={() => setIsMuted(!isMuted)}
-                  className="p-3 rounded-full border border-white/40 bg-black/20 backdrop-blur hover:bg-white/10 transition-colors text-white ml-auto relative z-30"
+                  className="p-3 rounded-full border border-white/40 bg-black/20 backdrop-blur hover:bg-white/10 transition-colors text-white sm:ml-auto relative z-30"
                 >
                   {isMuted ? (
                     <VolumeX className="w-5 h-5" />

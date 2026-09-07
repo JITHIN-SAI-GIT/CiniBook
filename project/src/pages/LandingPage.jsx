@@ -273,7 +273,7 @@ export default function LandingPage() {
       {/* Search + Location */}
       <section className="max-w-2xl mx-auto px-4 -mt-8 relative z-20">
         <form onSubmit={handleSearch}>
-          <div className="glass-strong rounded-2xl p-2 flex items-center gap-2 shadow-2xl neon-border-red">
+          <div className="glass-strong rounded-2xl p-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-2xl neon-border-red">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <input
@@ -290,7 +290,8 @@ export default function LandingPage() {
               className="flex items-center gap-1.5 px-3 py-2 text-sm text-[#ffd60a] hover:bg-white/5 rounded-xl transition-all whitespace-nowrap"
             >
               <MapPin className="w-4 h-4" />
-              {selectedCity || 'Set City'}
+              <span className="hidden sm:inline">{selectedCity || 'Set City'}</span>
+              <span className="sm:hidden w-full text-center">{selectedCity || 'Set City'}</span>
             </button>
             <button
               type="submit"

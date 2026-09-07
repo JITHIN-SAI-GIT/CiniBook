@@ -171,7 +171,7 @@ export default function MoviesPage() {
         {/* Header & Search */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-6">Explore Movies</h1>
-          <div className="flex gap-3 max-w-2xl">
+          <div className="flex flex-col sm:flex-row gap-3 max-w-2xl">
             <form onSubmit={handleSearch} className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <input
@@ -184,7 +184,7 @@ export default function MoviesPage() {
             </form>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all ${
+              className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-3 sm:py-2.5 rounded-full border text-sm font-medium transition-all w-full sm:w-auto ${
                 hasActiveFilters
                   ? 'bg-[#e63946] border-[#e63946] text-white'
                   : 'border-white/10 text-gray-400 hover:text-white hover:border-white/20'

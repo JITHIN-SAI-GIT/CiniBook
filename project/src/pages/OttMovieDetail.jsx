@@ -274,7 +274,7 @@ export default function OttMovieDetail() {
                       <button
                         onClick={handleWatch}
                         disabled={streamLoading}
-                        className="btn-primary flex items-center gap-2 !px-8 !py-4 text-base rounded-xl transition-all shadow-lg hover:shadow-xl hover:brightness-110 active:scale-95 disabled:opacity-75"
+                        className="btn-primary w-full sm:w-auto flex justify-center items-center gap-2 px-4 py-3 sm:px-8 sm:py-4 text-sm sm:text-base rounded-xl transition-all shadow-lg hover:shadow-xl hover:brightness-110 active:scale-95 disabled:opacity-75"
                       >
                         {streamLoading ? (
                           <>
@@ -292,7 +292,7 @@ export default function OttMovieDetail() {
                     {videoId && (
                       <button
                         onClick={() => setIsPlaying(true)}
-                        className="btn-ghost flex items-center gap-2 !px-6 !py-4 text-base rounded-xl bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md"
+                        className="btn-ghost w-full sm:w-auto flex justify-center items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base rounded-xl bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md"
                       >
                         Watch Trailer
                       </button>
@@ -301,7 +301,7 @@ export default function OttMovieDetail() {
                     {hasVideo && (
                       <button
                         onClick={() => triggerDownload()}
-                        className="btn-ghost flex items-center gap-2 !px-6 !py-4 text-base rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30 backdrop-blur-md transition-all"
+                        className="btn-ghost w-full sm:w-auto flex justify-center items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30 backdrop-blur-md transition-all"
                       >
                         {downloadStatus === 'completed' || downloadStatus === 'triggered' ? (
                           <>
@@ -322,7 +322,7 @@ export default function OttMovieDetail() {
 
                     <button
                       onClick={handleToggleWatchlist}
-                      className="btn-ghost flex items-center gap-2 !px-6 !py-4 text-base rounded-xl bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md"
+                      className="btn-ghost w-full sm:w-auto flex justify-center items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 text-sm sm:text-base rounded-xl bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md"
                     >
                       {inWatchlist ? (
                         <CheckCircle2 className="w-5 h-5 text-green-400" />

@@ -58,7 +58,7 @@ export default function App() {
         <AuthProvider>
           <DownloadProvider>
             <LocationProvider>
-              <div className="flex flex-col min-h-screen bg-[#0a0a0f]">
+              <div className="flex flex-col min-h-screen bg-[#0a0a0f] overflow-x-hidden w-full max-w-[100vw]">
                 <Navbar />
                 {/* Global Location Modal — shown when location prompt is triggered */}
                 <LocationModal />
