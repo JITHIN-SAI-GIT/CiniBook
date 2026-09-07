@@ -91,15 +91,17 @@ export default function LandingPage() {
   });
   const [error, setError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
   const abortRef = useRef(null);
 
-  const fetchMovies = useCallback(async () => {
+  const fetchMovies = useCallback(async (isRetry = false) => {
     // Abort any previous fetch
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
     setError(false);
+    if (!isRetry) setRetryCount(0);
     setHeroLoading(true);
     setSectionsLoading({
       nowPlaying: true,
@@ -171,6 +173,17 @@ export default function LandingPage() {
     }
   }, []);
 
+  // Handle auto-retry if error
+  useEffect(() => {
+    if (error && retryCount < 2) {
+      const timer = setTimeout(() => {
+        setRetryCount((prev) => prev + 1);
+        fetchMovies(true);
+      }, 5000); // 5s delay before retry
+      return () => clearTimeout(timer);
+    }
+  }, [error, retryCount, fetchMovies]);
+
   useEffect(() => {
     fetchMovies();
     return () => {
@@ -214,21 +227,32 @@ export default function LandingPage() {
   );
 
   if (error && trending.length === 0) {
+    const isRetrying = retryCount < 2;
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
         <div className="glass p-8 rounded-2xl flex flex-col items-center max-w-md text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+          {isRetrying ? (
+            <RefreshCw className="w-12 h-12 text-[#ffd60a] mb-4 animate-spin" />
+          ) : (
+            <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+          )}
           <h2 className="text-xl font-bold text-white mb-2">
-            Unable to load latest movies.
+            {isRetrying ? 'Backend is warming up...' : 'Unable to load latest movies.'}
           </h2>
           <p className="text-gray-400 text-sm mb-6">
-            Could not connect to TMDB. Please check your API key configuration.
+            {isRetrying
+              ? `Waiting for the server to start (Attempt ${retryCount + 1}/3)...`
+              : 'Could not connect to the server or TMDB. Please try again.'}
           </p>
           <button
-            onClick={fetchMovies}
-            className="btn-primary flex items-center gap-2"
+            onClick={() => fetchMovies(false)}
+            disabled={isRetrying}
+            className={`flex items-center gap-2 ${
+              isRetrying ? 'btn-secondary opacity-50 cursor-not-allowed' : 'btn-primary'
+            }`}
           >
-            <RefreshCw className="w-4 h-4" /> Retry
+            <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />{' '}
+            {isRetrying ? 'Retrying...' : 'Retry'}
           </button>
         </div>
       </div>

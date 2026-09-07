@@ -98,7 +98,8 @@ export default function OttMovieDetail() {
     try {
       const res = await moviesApi.getStreamUrl(Number(id));
       const url = res.data.streamUrl;
-      const absoluteUrl = url.startsWith('/') ? `${API_ORIGIN}${url}` : url;
+      const tokenStr = localStorage.getItem('cb_token') ? `?token=${localStorage.getItem('cb_token')}` : '';
+      const absoluteUrl = url.startsWith('/') ? `${API_ORIGIN}${url}${tokenStr}` : url;
       setStreamUrl(absoluteUrl);
       setIsStreaming(true);
     } catch (err) {
@@ -151,7 +152,11 @@ export default function OttMovieDetail() {
     );
 
   const videoId = getYoutubeId(movie.trailerUrl);
-  const hasVideo = !!(movie.videoFileName || movie.streamUrl);
+  // A movie has a streamable video if ANY of its storage fields are populated.
+  // videoFileName = Google Drive file ID or B2 object key (from upload flow)
+  // streamUrl    = proxy URL stored in DB (e.g. /api/movies/google-stream/...)
+  // videoUrl     = resolved public URL (may be set by sync or older uploads)
+  const hasVideo = !!(movie.videoFileName || movie.streamUrl || movie.videoUrl);
 
   return (
     <div className="bg-[#0a0a0f] min-h-screen pb-16 relative overflow-x-hidden text-gray-200">
@@ -293,14 +298,14 @@ export default function OttMovieDetail() {
                       </button>
                     )}
 
-                    {movie.downloadEnabled && (
+                    {hasVideo && (
                       <button
                         onClick={() => triggerDownload()}
                         className="btn-ghost flex items-center gap-2 !px-6 !py-4 text-base rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30 backdrop-blur-md transition-all"
                       >
-                        {downloadStatus === 'completed' ? (
+                        {downloadStatus === 'completed' || downloadStatus === 'triggered' ? (
                           <>
-                            <Check className="w-5 h-5" /> Saved Offline
+                            <Check className="w-5 h-5" /> Downloaded
                           </>
                         ) : downloadStatus === 'downloading' ? (
                           <>

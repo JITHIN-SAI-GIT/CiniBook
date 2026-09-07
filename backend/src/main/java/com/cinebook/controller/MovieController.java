@@ -152,8 +152,10 @@ public class MovieController {
      */
     @GetMapping("/storage/stats")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> getStorageStats() {
-        return ResponseEntity.ok(movieService.getStorageStats());
+    public java.util.concurrent.CompletableFuture<ResponseEntity<Map<String, Object>>> getStorageStats() {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> 
+            ResponseEntity.ok(movieService.getStorageStats())
+        );
     }
 
     @GetMapping("/storage/b2-test-list")
@@ -248,21 +250,39 @@ public class MovieController {
             }
             
             response.setStatus(statusCode);
+
+            // Always explicitly advertise byte-range support so browsers can seek/scrub.
+            // Google Drive does not always forward Accept-Ranges in its own response.
+            response.setHeader("Accept-Ranges", "bytes");
             
             String downloadParam = request.getParameter("download");
             String filenameParam = request.getParameter("filename");
 
+            boolean[] contentTypeSet = {false};
             googleResponse.headers().map().forEach((key, values) -> {
-                if (key.equalsIgnoreCase("Content-Type") || 
-                    key.equalsIgnoreCase("Content-Range") || 
-                    key.equalsIgnoreCase("Accept-Ranges") ||
-                    key.equalsIgnoreCase("Content-Length")) {
+                if (key.equalsIgnoreCase("Content-Type")) {
+                    values.forEach(val -> {
+                        // Force video/mp4 if Google Drive returned octet-stream
+                        if (val.contains("application/octet-stream")) {
+                            response.setHeader(key, "video/mp4");
+                        } else {
+                            response.setHeader(key, val);
+                        }
+                        contentTypeSet[0] = true;
+                    });
+                } else if (key.equalsIgnoreCase("Content-Range") ||
+                           key.equalsIgnoreCase("Content-Length")) {
+                    // Accept-Ranges is already set above; copy Content-Range and Content-Length from Drive
                     values.forEach(val -> response.setHeader(key, val));
                 }
                 if (key.equalsIgnoreCase("Content-Disposition") && !"true".equals(downloadParam)) {
                     values.forEach(val -> response.setHeader(key, val));
                 }
             });
+
+            if (!contentTypeSet[0]) {
+                response.setHeader("Content-Type", "video/mp4");
+            }
 
             if ("true".equals(downloadParam)) {
                 String dispositionFilename = (filenameParam != null && !filenameParam.isBlank()) ? filenameParam : "movie.mp4";

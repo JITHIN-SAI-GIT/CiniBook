@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -31,6 +31,7 @@ export default function HeroCarousel({
   onTrailerFullscreenChange,
 }) {
   const { profile, isLoggedIn } = useAuth();
+  const navigate = useNavigate();
   const { downloadStatuses, startDownload } = useDownload();
   const { toast } = useToast();
 
@@ -232,6 +233,12 @@ export default function HeroCarousel({
                 {movie.synopsis}
               </p>
               <div className="flex items-center justify-center md:justify-start gap-4 flex-wrap relative">
+                <button
+                  onClick={() => navigate(`/ott/movie/${movie.id}`)}
+                  className="bg-white text-black flex items-center gap-2 !px-8 !py-4 text-base rounded-xl font-bold transition-all hover:bg-gray-200 hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                >
+                  <Play className="w-5 h-5 fill-current" /> Watch Now
+                </button>
                 {videoId && (
                   <button
                     onClick={() => {
@@ -247,7 +254,7 @@ export default function HeroCarousel({
                     <Play className="w-5 h-5 fill-current" /> Play Trailer
                   </button>
                 )}
-                {movie.downloadEnabled && (
+                {!!(movie.videoFileName || movie.streamUrl) && (
                   <button
                     onClick={() => startDownload(movie)}
                     className="btn-ghost flex items-center gap-2 !px-8 !py-4 text-base rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md transition-all hover:scale-105"

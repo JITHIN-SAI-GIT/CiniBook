@@ -120,6 +120,10 @@ public class Movie {
     @Builder.Default
     private Boolean downloadEnabled = false;
 
+    @Column(name = "download_count", nullable = false)
+    @Builder.Default
+    private Integer downloadCount = 0;
+
     // ── Backblaze B2 Video Storage Fields ────────────────────────────────────
 
     /** S3 object key in Backblaze B2 (e.g. movies/title/title-uuid.mp4) */

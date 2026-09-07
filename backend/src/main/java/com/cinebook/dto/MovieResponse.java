@@ -33,6 +33,7 @@ public class MovieResponse {
     private LocalDateTime uploadDate;
     private Boolean downloadEnabled;
     private String videoFileName;
+    private String mimeType;
 
     public static MovieResponse from(Movie m) {
         MovieResponse r = new MovieResponse();
@@ -62,6 +63,7 @@ public class MovieResponse {
         r.uploadDate = m.getUploadDate();
         r.downloadEnabled = m.getDownloadEnabled();
         r.videoFileName = m.getVideoFileName();
+        r.mimeType = m.getMimeType();
         return r;
     }
 }

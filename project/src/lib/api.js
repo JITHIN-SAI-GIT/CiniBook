@@ -291,7 +291,7 @@ export const moviesApi = {
   syncFileSize: (id) => api.post(`/movies/${id}/sync-file-size`),
 
   deleteVideo: (id) => api.delete(`/movies/${id}/video`),
-  getStorageStats: () => api.get('/movies/storage/stats'),
+  getStorageStats: () => api.get('/movies/storage/stats', { timeout: 60000 }),
 };
 
 // ---- TMDB (with caching + deduplication) ----
@@ -306,7 +306,7 @@ export const tmdbApi = {
   getMovieDetails: (tmdbId) => cachedGet(`/tmdb/movie/${tmdbId}`),
   /** Single call that returns all homepage TMDB data */
   getHomepageBundle: () =>
-    withRetry(() => cachedGet('/tmdb/homepage-bundle')),
+    withRetry(() => cachedGet('/tmdb/homepage-bundle', { timeout: 60000 })),
 };
 
 // ---- Theatres ----
@@ -386,4 +386,11 @@ export const vouchersApi = {
   getAll: () => api.get('/vouchers'),
   create: (data) => api.post('/vouchers', data),
   delete: (id) => api.delete(`/vouchers/${id}`),
+};
+
+// ---- Analytics ----
+export const analyticsApi = {
+  getAdminDashboard: () => api.get('/analytics/admin/dashboard'),
+  heartbeat: () => api.post('/analytics/heartbeat'),
+  trackDownload: (movieId) => api.post(`/analytics/track-download/${movieId}`),
 };

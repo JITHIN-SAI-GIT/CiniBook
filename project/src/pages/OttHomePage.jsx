@@ -740,7 +740,7 @@ function ContinueWatchingRow({ title, items }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="relative">
+    <div className="relative group/row">
       <h3 className="text-2xl font-bold text-white mb-4 pl-2 font-outfit border-l-4 border-[#ffd60a] leading-none">
         {title}
       </h3>
@@ -759,36 +759,40 @@ function ContinueWatchingRow({ title, items }) {
             <div
               key={item.id}
               onClick={() => navigate(`/ott/movie/${movie.id}`)}
-              className="min-w-[220px] md:min-w-[260px] relative group rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:z-30 shadow-lg hover:shadow-2xl bg-white/5 border border-white/10"
+              className="w-[180px] sm:w-[200px] md:w-[220px] shrink-0 relative group rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:z-30 bg-[#1a1a2e] border border-white/10 hover:border-[#e63946]/40 hover:shadow-[0_10px_30px_rgba(230,57,70,0.2)] flex flex-col"
             >
-              <div className="aspect-video w-full bg-white/5 relative">
-                <img
-                  src={movie.bannerUrl || movie.posterUrl}
+              <div className="aspect-[2/3] w-full relative">
+                <SafeImage
+                  src={
+                    movie.posterUrl ||
+                    'https://placehold.co/500x750/0c0c14/ffffff?text=No+Poster'
+                  }
                   alt={movie.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
 
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="bg-white text-black p-3 rounded-full hover:bg-[#ffd60a] transition-all transform scale-90 group-hover:scale-100 duration-300">
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  <span className="bg-white/10 backdrop-blur border border-white/20 text-white p-3 rounded-full hover:bg-[#e63946] hover:border-transparent hover:text-white transition-all transform scale-90 group-hover:scale-100 duration-300 shadow-xl">
                     <Play className="w-5 h-5 fill-current" />
                   </span>
                 </div>
-                {/* Progress bar overlay */}
-                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20">
-                  <div
-                    className="h-full bg-[#e63946]"
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
               </div>
-              <div className="p-4">
+              
+              <div className="p-3 bg-[#141414] border-t border-white/5 flex flex-col flex-1 relative z-20">
                 <h4 className="text-white font-bold text-sm truncate">
                   {movie.title}
                 </h4>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-[10px] text-gray-400 mt-0.5 truncate">
                   {movie.language} • {movie.genre?.split('/')[0]}
                 </p>
-                <p className="text-[10px] text-[#ffd60a] font-semibold mt-1">
+                
+                <div className="mt-2.5 w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#e63946] rounded-full"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+                <p className="text-[9px] text-gray-400 font-medium mt-1">
                   Resume at {Math.floor(item.progressSeconds / 60)}m
                 </p>
               </div>

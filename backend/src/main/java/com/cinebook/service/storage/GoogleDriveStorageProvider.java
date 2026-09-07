@@ -46,6 +46,7 @@ public class GoogleDriveStorageProvider implements StorageProvider {
     private MovieRepository movieRepository;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(30))
             .build();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -71,6 +72,7 @@ public class GoogleDriveStorageProvider implements StorageProvider {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://oauth2.googleapis.com/token"))
                 .header("Content-Type", "application/x-www-form-urlencoded")
+                .timeout(java.time.Duration.ofSeconds(5))
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
@@ -239,7 +241,7 @@ public class GoogleDriveStorageProvider implements StorageProvider {
     public InputStream downloadFile(String fileId) throws Exception {
         String token = getAccessToken();
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://www.googleapis.com/drive/v3/files/" + fileId + "?alt=media"))
+                .uri(URI.create("https://www.googleapis.com/drive/v3/files/" + fileId + "?alt=media&acknowledgeAbuse=true"))
                 .header("Authorization", "Bearer " + token)
                 .GET()
                 .build();
@@ -257,7 +259,7 @@ public class GoogleDriveStorageProvider implements StorageProvider {
     public HttpResponse<InputStream> downloadFileWithRange(String fileId, String rangeHeader) throws Exception {
         String token = getAccessToken();
         HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create("https://www.googleapis.com/drive/v3/files/" + fileId + "?alt=media"))
+                .uri(URI.create("https://www.googleapis.com/drive/v3/files/" + fileId + "?alt=media&acknowledgeAbuse=true"))
                 .header("Authorization", "Bearer " + token)
                 .GET();
 
@@ -312,25 +314,25 @@ public class GoogleDriveStorageProvider implements StorageProvider {
         try {
             String token = getAccessToken();
             java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
-                    .uri(URI.create("https://www.googleapis.com/drive/v3/files/" + fileId + "?fields=size"))
+                    .uri(URI.create("https://www.googleapis.com/drive/v3/files/" + fileId + "?fields=size,trashed"))
                     .header("Authorization", "Bearer " + token)
                     .GET()
                     .build();
             java.net.http.HttpResponse<String> response = httpClient.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                String body = response.body();
-                // Parse "size" field from JSON: {"size": "1234567"}
-                int idx = body.indexOf("\"size\"");
-                if (idx != -1) {
-                    int colon = body.indexOf(":", idx);
-                    int start = body.indexOf("\"", colon + 1) + 1;
-                    int end = body.indexOf("\"", start);
-                    if (start > 0 && end > start) {
-                        return Long.parseLong(body.substring(start, end).trim());
-                    }
+                JsonNode node = objectMapper.readTree(response.body());
+                // Sanity-check: if the file has been trashed, treat as missing
+                if (node.has("trashed") && node.get("trashed").asBoolean(false)) {
+                    log.warn("Google Drive file {} has been trashed — treating as missing", fileId);
+                    return -1L;
                 }
+                if (node.has("size")) {
+                    return node.get("size").asLong(-1L);
+                }
+                log.warn("Google Drive file {} metadata response has no 'size' field. Body: {}", fileId, response.body());
+                return -1L;
             }
-            log.warn("Could not get size for Google Drive fileId={}: status={}", fileId, response.statusCode());
+            log.warn("Could not get size for Google Drive fileId={}: HTTP status={}", fileId, response.statusCode());
             return -1L;
         } catch (Exception e) {
             log.warn("Failed to get Google Drive file size for {}: {}", fileId, e.getMessage());
@@ -363,6 +365,17 @@ public class GoogleDriveStorageProvider implements StorageProvider {
                     String reqOrigin = req.getHeader("Origin");
                     if (reqOrigin != null && !reqOrigin.isBlank()) {
                         origin = reqOrigin;
+                    } else {
+                        // Fallback: When testing locally through a proxy (like Vite), the browser doesn't send the Origin header for same-origin requests
+                        String referer = req.getHeader("Referer");
+                        if (referer != null && referer.startsWith("http")) {
+                            try {
+                                URI uri = URI.create(referer);
+                                origin = uri.getScheme() + "://" + uri.getAuthority();
+                            } catch (Exception ex) {
+                                log.warn("Failed to parse Referer for Origin fallback: {}", ex.getMessage());
+                            }
+                        }
                     }
                 }
             }
@@ -460,6 +473,7 @@ public class GoogleDriveStorageProvider implements StorageProvider {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://www.googleapis.com/drive/v3/about?fields=storageQuota"))
                     .header("Authorization", "Bearer " + token)
+                    .timeout(java.time.Duration.ofSeconds(5))
                     .GET()
                     .build();
 

@@ -309,7 +309,7 @@ export default function MoviesPage() {
         {error ? (
           <div className="text-center py-20">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <p className="text-gray-300 text-lg">Unable to connect to TMDB.</p>
+            <p className="text-gray-300 text-lg">Unable to load movies.</p>
           </div>
         ) : loading ? (
           <MovieGridSkeleton count={10} />

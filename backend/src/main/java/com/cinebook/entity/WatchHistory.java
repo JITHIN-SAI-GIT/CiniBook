@@ -23,6 +23,7 @@ public class WatchHistory {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "movie_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Movie movie;
 
     @Column(name = "watched_at")

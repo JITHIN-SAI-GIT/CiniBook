@@ -229,7 +229,45 @@ public class TMDBService {
             try { return getNowPlaying(1); } catch (Exception e) { log.warn("nowPlaying failed", e); return Map.of("results", List.of()); }
         });
         java.util.concurrent.CompletableFuture<Map<String, Object>> trendingFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
-            try { return getTrending(); } catch (Exception e) { log.warn("trending failed", e); return Map.of("results", List.of()); }
+            try { 
+                Map<String, Object> tmdbResult = getTrending(); 
+                if (tmdbResult.containsKey("error")) throw new RuntimeException("TMDB not configured");
+                return tmdbResult;
+            } catch (Exception e) { 
+                log.warn("trending failed, falling back to local DB", e); 
+                List<Movie> dbTrending = movieRepository.findByIsTrendingTrue();
+                List<Map<String, Object>> mappedResults = new ArrayList<>();
+                for (Movie m : dbTrending) {
+                    Map<String, Object> map = new java.util.HashMap<>();
+                    map.put("id", m.getTmdbId() != null ? m.getTmdbId() : m.getId());
+                    map.put("title", m.getTitle());
+                    map.put("overview", m.getSynopsis());
+                    map.put("vote_average", m.getRating());
+                    
+                    // Map absolute URLs back to TMDB relative paths for the frontend
+                    String poster = m.getPosterUrl();
+                    if (poster != null && poster.startsWith("https://image.tmdb.org/t/p/w500")) {
+                        map.put("poster_path", poster.replace("https://image.tmdb.org/t/p/w500", ""));
+                    }
+                    String banner = m.getBannerUrl();
+                    if (banner != null && banner.startsWith("https://image.tmdb.org/t/p/original")) {
+                        map.put("backdrop_path", banner.replace("https://image.tmdb.org/t/p/original", ""));
+                    }
+                    mappedResults.add(map);
+                }
+                
+                // If DB is also empty, add a default fallback so carousel doesn't break
+                if (mappedResults.isEmpty()) {
+                    Map<String, Object> defaultMovie = new java.util.HashMap<>();
+                    defaultMovie.put("id", 1);
+                    defaultMovie.put("title", "CineBook Premiere");
+                    defaultMovie.put("overview", "Welcome to CineBook. Enjoy the best movies curated just for you.");
+                    defaultMovie.put("vote_average", 9.0);
+                    mappedResults.add(defaultMovie);
+                }
+                
+                return Map.of("results", mappedResults);
+            }
         });
         java.util.concurrent.CompletableFuture<Map<String, Object>> popularFuture = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
             try { return getPopular(1); } catch (Exception e) { log.warn("popular failed", e); return Map.of("results", List.of()); }

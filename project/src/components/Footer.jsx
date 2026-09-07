@@ -89,21 +89,17 @@ export default function Footer() {
                 <Mail className="w-3.5 h-3.5 text-[#ffd60a]" />
                 support@cinebook.in
               </li>
-              <li className="text-sm text-gray-400">📍 Hyderabad, Telangana</li>
-              <li className="text-sm text-gray-400">📞 +91 90000 00000</li>
+              <li className="text-sm text-gray-400">📍 AndhraPradesh, Vishakapatanam</li>
+              <li className="text-sm text-gray-400">📞 +91 9398015180</li>
             </ul>
             <div className="mt-4 glass rounded-xl p-3 border border-[#ffd60a]/20">
-              <p className="text-[11px] text-gray-400">
-                <span className="text-[#ffd60a] font-medium">Built with</span>{' '}
-                React + Spring Boot + MySQL
-              </p>
             </div>
           </div>
         </div>
 
         <div className="border-t border-white/10 mt-10 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-xs text-gray-500">
-            © 2025 CineBook. All rights reserved.
+            © 2026 CineBook. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <span>Privacy Policy</span>

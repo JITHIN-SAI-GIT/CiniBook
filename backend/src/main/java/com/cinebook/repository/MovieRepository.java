@@ -34,4 +34,7 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
 
     @Query("SELECT MAX(m.uploadDate) FROM Movie m WHERE m.storageProvider = :provider")
     java.time.LocalDateTime findLatestUploadDateByStorageProvider(@Param("provider") String provider);
+
+    @Query("SELECT COALESCE(SUM(m.downloadCount), 0) FROM Movie m")
+    Long sumDownloadCount();
 }

@@ -639,58 +639,55 @@ public class MovieService {
      * Returns multi-cloud storage statistics.
      */
     public Map<String, Object> getStorageStats() {
-        boolean configured = false;
-        long totalObjects = 0L;
-        List<Map<String, Object>> providersStats = new ArrayList<>();
+        List<Map<String, Object>> providersStats = storageManager.getProviders().parallelStream()
+            .map(provider -> {
+                if (provider.isConfigured()) {
+                    long used = provider.getUsedStorage();
+                    long limit = provider.getStorageLimit();
+                    long remaining = 0;
+                    try {
+                        remaining = provider.checkRemainingStorage();
+                    } catch (Exception e) {}
 
-        for (com.cinebook.service.storage.StorageProvider provider : storageManager.getProviders()) {
-            if (provider.isConfigured()) {
-                configured = true;
-                long used = provider.getUsedStorage();
-                long limit = provider.getStorageLimit();
-                long remaining = 0;
-                try {
-                    remaining = provider.checkRemainingStorage();
-                } catch (Exception e) {}
+                    Long filesCount = movieRepository.countByStorageProvider(provider.getProviderId());
+                    LocalDateTime lastUpload = movieRepository.findLatestUploadDateByStorageProvider(provider.getProviderId());
 
-                Long filesCount = movieRepository.countByStorageProvider(provider.getProviderId());
-                totalObjects += (filesCount != null ? filesCount : 0L);
+                    Map<String, Object> pStat = new HashMap<>();
+                    pStat.put("providerId", provider.getProviderId());
+                    pStat.put("name", provider.getProviderName());
+                    pStat.put("configured", true);
+                    boolean healthy = provider.healthCheck();
+                    pStat.put("healthy", healthy);
+                    pStat.put("status", healthy ? "Connected" : "Unhealthy");
+                    pStat.put("storageUsed", used);
+                    pStat.put("storageRemaining", remaining);
+                    pStat.put("storageLimit", limit);
+                    pStat.put("filesCount", filesCount != null ? filesCount : 0L);
+                    pStat.put("lastUpload", lastUpload != null ? lastUpload.toString() : "Never");
 
-                LocalDateTime lastUpload = movieRepository.findLatestUploadDateByStorageProvider(provider.getProviderId());
+                    return pStat;
+                } else {
+                    Map<String, Object> pStat = new HashMap<>();
+                    pStat.put("providerId", provider.getProviderId());
+                    pStat.put("name", provider.getProviderName());
+                    pStat.put("configured", false);
+                    pStat.put("healthy", false);
+                    pStat.put("status", "Not Configured");
+                    pStat.put("storageUsed", 0L);
+                    pStat.put("storageRemaining", 0L);
+                    pStat.put("storageLimit", 0L);
+                    pStat.put("filesCount", 0L);
+                    pStat.put("lastUpload", "Never");
+                    return pStat;
+                }
+            })
+            .collect(java.util.stream.Collectors.toList());
 
-                Map<String, Object> pStat = new HashMap<>();
-                pStat.put("providerId", provider.getProviderId());
-                pStat.put("name", provider.getProviderName());
-                pStat.put("configured", true);
-                pStat.put("healthy", provider.healthCheck());
-                pStat.put("status", provider.healthCheck() ? "Connected" : "Unhealthy");
-                pStat.put("storageUsed", used);
-                pStat.put("storageRemaining", remaining);
-                pStat.put("storageLimit", limit);
-                pStat.put("filesCount", filesCount != null ? filesCount : 0L);
-                pStat.put("lastUpload", lastUpload != null ? lastUpload.toString() : "Never");
+        boolean configured = providersStats.stream().anyMatch(s -> (Boolean) s.get("configured"));
+        long totalObjects = providersStats.stream().mapToLong(s -> (Long) s.get("filesCount")).sum();
 
-                providersStats.add(pStat);
-            } else {
-                Map<String, Object> pStat = new HashMap<>();
-                pStat.put("providerId", provider.getProviderId());
-                pStat.put("name", provider.getProviderName());
-                pStat.put("configured", false);
-                pStat.put("healthy", false);
-                pStat.put("status", "Not Configured");
-                pStat.put("storageUsed", 0L);
-                pStat.put("storageRemaining", 0L);
-                pStat.put("storageLimit", provider.getStorageLimit());
-                pStat.put("filesCount", 0L);
-                pStat.put("lastUpload", "Never");
-                providersStats.add(pStat);
-            }
-        }
-
-        Long totalSizeSum = 0L;
-        for (com.cinebook.service.storage.StorageProvider provider : storageManager.getProviders()) {
-            totalSizeSum += provider.getUsedStorage();
-        }
+        // Derive totalSizeSum from already-collected stats — no extra DB calls
+        long totalSizeSum = providersStats.stream().mapToLong(s -> (Long) s.get("storageUsed")).sum();
         double totalGb = (double) totalSizeSum / (1024.0 * 1024.0 * 1024.0);
 
         String activeProvider = "None";
@@ -751,24 +748,45 @@ public class MovieService {
             throw new IllegalArgumentException("objectKey is required");
         }
 
-        // Verify the file actually exists on the cloud provider before committing to the database
+        // Verify the file actually exists on the cloud provider before committing to the database.
+        // Google Drive has an eventual-consistency window (~5-30s) after a resumable upload completes.
+        // Retry up to 3 times with a 2-second delay to handle this gracefully.
         long actualSize = -1;
-        try {
-            if ("backblaze_b2".equals(provider)) {
-                com.cinebook.service.storage.BackblazeB2StorageProvider b2 =
-                        (com.cinebook.service.storage.BackblazeB2StorageProvider) storageManager.getProvider("backblaze_b2");
-                actualSize = b2.getFileSize(objectKey);
-            } else if ("google_drive".equals(provider)) {
-                com.cinebook.service.storage.GoogleDriveStorageProvider gdrive =
-                        (com.cinebook.service.storage.GoogleDriveStorageProvider) storageManager.getProvider("google_drive");
-                actualSize = gdrive.getFileSize(objectKey);
+        int maxVerifyAttempts = "google_drive".equals(provider) ? 10 : 1;
+        for (int attempt = 1; attempt <= maxVerifyAttempts; attempt++) {
+            try {
+                if ("backblaze_b2".equals(provider)) {
+                    com.cinebook.service.storage.BackblazeB2StorageProvider b2 =
+                            (com.cinebook.service.storage.BackblazeB2StorageProvider) storageManager.getProvider("backblaze_b2");
+                    actualSize = b2.getFileSize(objectKey);
+                } else if ("google_drive".equals(provider)) {
+                    com.cinebook.service.storage.GoogleDriveStorageProvider gdrive =
+                            (com.cinebook.service.storage.GoogleDriveStorageProvider) storageManager.getProvider("google_drive");
+                    actualSize = gdrive.getFileSize(objectKey);
+                }
+            } catch (Exception e) {
+                log.warn("Attempt {}/{} — Failed to verify uploaded file size for objectKey={}: {}",
+                        attempt, maxVerifyAttempts, objectKey, e.getMessage());
             }
-        } catch (Exception e) {
-            log.error("Failed to verify uploaded file size for objectKey={}: {}", objectKey, e.getMessage());
+
+            if (actualSize > 0) {
+                log.info("Upload verification succeeded on attempt {}/{} for objectKey={}: size={} bytes",
+                        attempt, maxVerifyAttempts, objectKey, actualSize);
+                break;
+            }
+
+            if (attempt < maxVerifyAttempts) {
+                log.warn("Upload verification attempt {}/{} returned size={} for objectKey={}. " +
+                        "Waiting 3s for cloud consistency before retry...",
+                        attempt, maxVerifyAttempts, actualSize, objectKey);
+                try { Thread.sleep(3000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+            }
         }
 
         if (actualSize <= 0) {
-            throw new RuntimeException("Upload verification failed: Could not retrieve file from " + provider + " for key: " + objectKey);
+            throw new RuntimeException("Upload verification failed after " + maxVerifyAttempts +
+                    " attempt(s): Could not retrieve file from " + provider + " for key: " + objectKey +
+                    ". The file may not have been fully committed yet. Please retry in a few seconds.");
         }
 
         // Use the actual size from the cloud provider if the payload size is 0 or missing

@@ -159,6 +159,8 @@ export default function VerifyEmailPage() {
             {otp.map((digit, index) => (
               <input
                 key={index}
+                id={`verify-otp-${index}`}
+                name={`otp-${index}`}
                 ref={(el) => (inputRefs.current[index] = el)}
                 type="text"
                 maxLength={6} // allow pasting
@@ -166,6 +168,7 @@ export default function VerifyEmailPage() {
                 onChange={(e) => handleChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 className="flex-1 min-w-0 w-full h-14 sm:h-16 text-center text-2xl font-bold bg-white/5 border border-white/10 rounded-xl focus:border-[#ffd60a] focus:ring-1 focus:ring-[#ffd60a] text-white transition-all outline-none"
+                aria-label={`OTP digit ${index + 1}`}
               />
             ))}
           </div>

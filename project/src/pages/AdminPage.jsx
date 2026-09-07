@@ -18,6 +18,7 @@ import {
   HardDrive,
   Video,
   Search,
+  Download,
 } from 'lucide-react';
 import {
   moviesApi,
@@ -25,6 +26,7 @@ import {
   showtimesApi,
   bookingsApi,
   vouchersApi,
+  analyticsApi,
 } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -136,6 +138,7 @@ export default function AdminPage() {
           ))}
         </div>
 
+        <OttLiveMonitor />
         {tab === 'dashboard' && <DashboardTab stats={stats} movies={movies} storageStats={storageStats} />}
         {tab === 'movies' && <MoviesTab movies={movies} onRefresh={fetchAll} storageStats={storageStats} />}
         {tab === 'theatres' && (
@@ -671,8 +674,8 @@ function MovieFormModal({ movie, storageStats, onClose, onSaved }) {
         return mapping[code.toLowerCase()] || 'English';
       };
 
-      setForm({
-        ...form,
+      setForm((prev) => ({
+        ...prev,
         title: details.title,
         genre: details.genres?.map((g) => g.name).join(', ') || 'Action',
         language: mapLanguage(details.original_language || 'en'),
@@ -691,7 +694,7 @@ function MovieFormModal({ movie, storageStats, onClose, onSaved }) {
         castList: cast,
         tmdbId: details.id,
         isOtt: true,
-      });
+      }));
       setShowTmdbSearch(false);
       toast('Autofilled from TMDB', 'success');
     } catch (err) {
@@ -714,8 +717,8 @@ function MovieFormModal({ movie, storageStats, onClose, onSaved }) {
         await autofillFromTmdb(data.results[0], durationMins);
         toast(`Auto-filled details for "${data.results[0].title}"`, 'success');
       } else {
-        setForm((f) => ({
-          ...f,
+        setForm((prev) => ({
+          ...prev,
           duration: durationMins || '120',
           title: cleanName,
           isOtt: true,
@@ -723,8 +726,8 @@ function MovieFormModal({ movie, storageStats, onClose, onSaved }) {
         toast(`Staged video. No TMDB match found.`, 'info');
       }
     } catch (err) {
-      setForm((f) => ({
-        ...f,
+      setForm((prev) => ({
+        ...prev,
         duration: durationMins || '120',
         title: cleanName,
         isOtt: true,
@@ -2616,6 +2619,84 @@ function OttTab({ movies, onRefresh, storageStats }) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function OttLiveMonitor() {
+  const [monitorStats, setMonitorStats] = useState({ totalMembers: 0, totalDownloads: 0, liveViewers: 0 });
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchAnalytics = async () => {
+      try {
+        const res = await analyticsApi.getAdminDashboard();
+        if (isMounted) {
+          setMonitorStats(res.data);
+          setError(false);
+        }
+      } catch (e) {
+        if (isMounted) setError(true);
+      }
+    };
+
+    fetchAnalytics();
+    const interval = setInterval(fetchAnalytics, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  return (
+    <div className="mb-8">
+      <h2 className="text-lg font-bold text-white mb-4 pl-2 border-l-4 border-[#e63946] uppercase tracking-wider">
+        OTT Live Monitor
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="glass rounded-xl p-6 border border-white/10 flex items-center gap-4 hover:border-white/20 transition-all">
+          <div className="p-3 bg-blue-500/20 rounded-lg text-blue-400">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Total Members</p>
+            <p className="text-2xl font-bold text-white">
+              {error ? '—' : monitorStats.totalMembers.toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        <div className="glass rounded-xl p-6 border border-white/10 flex items-center gap-4 hover:border-white/20 transition-all">
+          <div className="p-3 bg-purple-500/20 rounded-lg text-purple-400">
+            <Download className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Total Downloads</p>
+            <p className="text-2xl font-bold text-white">
+              {error ? '—' : monitorStats.totalDownloads.toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        <div className="glass rounded-xl p-6 border border-[#e63946]/30 flex items-center gap-4 bg-gradient-to-br from-[#e63946]/10 to-transparent hover:border-[#e63946]/50 transition-all relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-2">
+            <span className="flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+            </span>
+          </div>
+          <div className="p-3 bg-[#e63946]/20 rounded-lg text-[#e63946]">
+            <Tv className="w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Watching Now</p>
+            <p className="text-3xl font-extrabold text-white flex items-center gap-2">
+              {error ? '—' : monitorStats.liveViewers.toLocaleString()}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

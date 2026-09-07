@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
-import { api, moviesApi, watchHistoryApi, API_ORIGIN } from '../lib/api';
+import { api, moviesApi, watchHistoryApi, analyticsApi, API_ORIGIN } from '../lib/api';
 import { X, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 
 import { formatBytes } from '../lib/utils';
@@ -21,8 +21,11 @@ export const DownloadProvider = ({ children }) => {
       if (saved) {
         const ids = JSON.parse(saved);
         const map = {};
+        // On page load, previously-triggered downloads are shown as 'triggered'
+        // (not 'completed') — we cannot verify the browser actually saved the file.
+        // The user can always download again.
         ids.forEach((id) => {
-          map[id] = 'completed';
+          map[id] = 'triggered';
         });
         return map;
       }
@@ -116,25 +119,42 @@ export const DownloadProvider = ({ children }) => {
       
       const fileName = `${movie.title.trim().replace(/\\s+/g, '_')}_${movie.videoResolution || '1080p'}.${extension}`;
 
-      const downloadUrl = isRelativeUrl
-        ? `${absoluteStreamUrl}?token=${localStorage.getItem('cb_token') || ''}&download=true&filename=${encodeURIComponent(fileName)}`
-        : absoluteStreamUrl;
+      let downloadUrl = absoluteStreamUrl;
+      if (isRelativeUrl) {
+        downloadUrl = `${absoluteStreamUrl}?token=${localStorage.getItem('cb_token') || ''}&download=true&filename=${encodeURIComponent(fileName)}`;
+      } else if (absoluteStreamUrl.includes('backblazeb2.com')) {
+        const separator = absoluteStreamUrl.includes('?') ? '&' : '?';
+        downloadUrl = `${absoluteStreamUrl}${separator}b2ContentDisposition=attachment%3B%20filename%3D"${encodeURIComponent(fileName)}"`;
+      }
 
-      // Use native browser download for ALL providers (Google Drive and B2).
-      // Axios buffers Blob into memory, which crashes the browser for large files (1GB+ movies).
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = fileName;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Use a hidden anchor element click instead of window.location.assign.
+      // window.location.assign navigates the page away; a hidden anchor click
+      // triggers the browser's download manager without disrupting the React app.
+      // This works because the backend sets Content-Disposition: attachment and
+      // the URL is same-origin (proxied through our Spring Boot backend).
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.setAttribute('download', fileName);
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      
+      // Track successful download initiation
+      if (profile?.id) {
+        analyticsApi.trackDownload(movie.id).catch(() => {});
+      }
 
+      // Small delay to allow the browser to register the click before removing the element
+      setTimeout(() => document.body.removeChild(anchor), 200);
+
+      // Mark as 'triggered' — we cannot track native browser download completion.
+      // The actual file save happens in the browser's download manager independently.
+      // We intentionally do NOT mark as 'completed' since we cannot verify the download.
       setDownload((prev) => {
         if (!prev || prev.movieId !== movie.id) return prev;
-        return { ...prev, status: 'completed', percent: 100, xhr: null };
+        return { ...prev, status: 'triggered', percent: 100, xhr: null };
       });
-      setDownloadStatuses((prev) => ({ ...prev, [movie.id]: 'completed' }));
+      setDownloadStatuses((prev) => ({ ...prev, [movie.id]: 'triggered' }));
 
       if (profile?.id) {
         watchHistoryApi.saveProgress(profile.id, movie.id, 120).catch(console.error);
@@ -148,7 +168,7 @@ export const DownloadProvider = ({ children }) => {
           localStorage.setItem('cinebook_downloaded_movies', JSON.stringify(ids));
         }
       } catch (e) { console.error(e); }
-      toast(`Download triggered for: ${movie.title}`, 'success');
+      toast(`Download started: ${movie.title} — check your browser's downloads`, 'success');
     } catch (err) {
       console.error('Download error:', err);
       handleDownloadError(forceProvider, movie);
@@ -295,10 +315,10 @@ const DownloadProgress = ({ download, onCancel, onRetry }) => {
           </>
         )}
 
-        {download.status === 'completed' && (
+        {download.status === 'triggered' && (
           <div className="text-xs text-green-400 font-bold flex items-center gap-1.5 py-1">
-            <CheckCircle2 className="w-4 h-4 shrink-0" /> Download Complete!
-            Saved offline.
+            <CheckCircle2 className="w-4 h-4 shrink-0" /> Download started!
+            Check your browser&apos;s downloads.
           </div>
         )}
 

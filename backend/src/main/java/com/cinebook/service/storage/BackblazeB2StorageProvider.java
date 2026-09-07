@@ -704,20 +704,9 @@ public class BackblazeB2StorageProvider implements StorageProvider {
 
     @Override
     public long getUsedStorage() {
-        if (s3Client == null) return 0L;
-        try {
-            List<S3Object> contents = listAllObjects();
-            long totalSize = 0L;
-            for (S3Object s3Object : contents) {
-                totalSize += s3Object.size();
-            }
-            return totalSize;
-        } catch (Exception e) {
-            log.error("Failed to query B2 storage size: {}", e.getMessage());
-            if (movieRepository == null) return 0L;
-            Long sum = movieRepository.sumFileSizeByStorageProvider(getProviderId());
-            return sum != null ? sum : 0L;
-        }
+        if (movieRepository == null) return 0L;
+        Long sum = movieRepository.sumFileSizeByStorageProvider(getProviderId());
+        return sum != null ? sum : 0L;
     }
 
     @Override

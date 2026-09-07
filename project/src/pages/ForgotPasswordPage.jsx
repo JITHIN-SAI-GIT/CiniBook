@@ -166,12 +166,14 @@ export default function ForgotPasswordPage() {
             className="glass-strong rounded-2xl p-6 space-y-5 animate-slide-up border border-white/10"
           >
             <div>
-              <label className="text-sm text-gray-300 mb-1.5 block font-medium">
+              <label htmlFor="forgot-email" className="text-sm text-gray-300 mb-1.5 block font-medium">
                 Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                 <input
+                  id="forgot-email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -217,6 +219,8 @@ export default function ForgotPasswordPage() {
                 {otp.map((digit, index) => (
                   <input
                     key={index}
+                    id={`forgot-otp-${index}`}
+                    name={`otp-${index}`}
                     ref={(el) => (inputRefs.current[index] = el)}
                     type="text"
                     maxLength={6}
@@ -224,6 +228,7 @@ export default function ForgotPasswordPage() {
                     onChange={(e) => handleOtpChange(index, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(index, e)}
                     className="flex-1 min-w-0 w-full h-12 sm:h-14 text-center text-xl font-bold bg-white/5 border border-white/10 rounded-xl focus:border-[#ffd60a] focus:ring-1 focus:ring-[#ffd60a] text-white transition-all outline-none"
+                    aria-label={`OTP digit ${index + 1}`}
                   />
                 ))}
               </div>
@@ -231,12 +236,14 @@ export default function ForgotPasswordPage() {
 
             <div className="space-y-4 pt-2">
               <div>
-                <label className="text-sm text-gray-300 mb-1.5 block font-medium">
+                <label htmlFor="forgot-new-password" className="text-sm text-gray-300 mb-1.5 block font-medium">
                   New Password
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                   <input
+                    id="forgot-new-password"
+                    name="newPassword"
                     type={showPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
@@ -260,12 +267,14 @@ export default function ForgotPasswordPage() {
               </div>
 
               <div>
-                <label className="text-sm text-gray-300 mb-1.5 block font-medium">
+                <label htmlFor="forgot-confirm-password" className="text-sm text-gray-300 mb-1.5 block font-medium">
                   Confirm Password
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                   <input
+                    id="forgot-confirm-password"
+                    name="confirmPassword"
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}

@@ -13,7 +13,7 @@ import {
   ArrowLeft,
   Info,
 } from 'lucide-react';
-import { watchHistoryApi } from '../lib/api';
+import { watchHistoryApi, analyticsApi } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function VideoPlayer({
@@ -37,11 +37,45 @@ export default function VideoPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
-  const [showAudioInfo, setShowAudioInfo] = useState(false);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const subtitlesEnabled = true;
 
+  // Real-time OTT Monitor Heartbeat
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const sendHeartbeat = () => analyticsApi.heartbeat().catch(() => {});
+    sendHeartbeat(); // initial
+    const interval = setInterval(sendHeartbeat, 15000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
+
   const controlsTimeoutRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const gainNodeRef = useRef(null);
+
+  const initAudio = () => {
+    const video = videoRef.current;
+    if (!video || audioContextRef.current) return;
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContext();
+      const source = ctx.createMediaElementSource(video);
+      const gainNode = ctx.createGain();
+      
+      // Let the GainNode handle the volume amplification
+      video.volume = 1; 
+      gainNode.gain.value = isMuted ? 0 : volume * 3; // 300% boost
+      
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      audioContextRef.current = ctx;
+      gainNodeRef.current = gainNode;
+    } catch (e) {
+      console.warn('AudioContext init failed:', e);
+    }
+  };
 
   // Resume progress on load
   useEffect(() => {
@@ -117,17 +151,27 @@ export default function VideoPlayer({
   useEffect(() => {
     const video = videoRef.current;
     if (video) {
-      video.volume = volume;
-      video.muted = isMuted;
+      if (gainNodeRef.current) {
+        video.volume = 1;
+        video.muted = isMuted;
+        gainNodeRef.current.gain.value = isMuted ? 0 : volume * 3;
+      } else {
+        video.volume = volume;
+        video.muted = isMuted;
+      }
     }
   }, [volume, isMuted, videoUrl]);
 
   const togglePlay = () => {
     const video = videoRef.current;
     if (!video) return;
+    
+    initAudio();
+    if (audioContextRef.current?.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+    
     if (video.paused) {
-      video.volume = volume;
-      video.muted = isMuted;
       video.play();
       setIsPlaying(true);
     } else {
@@ -159,10 +203,7 @@ export default function VideoPlayer({
   };
 
   const handleVolumeChange = (e) => {
-    const video = videoRef.current;
-    if (!video) return;
     const val = parseFloat(e.target.value);
-    video.volume = val;
     setVolume(val);
     setIsMuted(val === 0);
   };
@@ -219,12 +260,15 @@ export default function VideoPlayer({
       const { volume: currentVol, isPlaying: currentIsPlaying } = latestStateRef.current;
       if (e.code === 'Space') {
         e.preventDefault();
-        // For togglePlay we need to access the latest state, but we can just use the function
         const video = videoRef.current;
         if (!video) return;
+        
+        initAudio();
+        if (audioContextRef.current?.state === 'suspended') {
+          audioContextRef.current.resume();
+        }
+        
         if (video.paused) {
-          video.volume = currentVol;
-          video.muted = (currentVol === 0);
           video.play();
           setIsPlaying(true);
         } else {
@@ -432,23 +476,30 @@ export default function VideoPlayer({
 
             {/* Right Controls */}
             <div className="flex items-center gap-6 relative">
-              {/* No Audio Help */}
+              {/* Quality Control (UI Only) */}
               <div className="relative">
                 <button
-                  onClick={() => setShowAudioInfo(!showAudioInfo)}
-                  className="text-white hover:text-gray-300 transition-colors flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-md text-xs font-medium"
+                  onClick={() => {
+                    setShowQualityMenu(!showQualityMenu);
+                    setShowSettings(false);
+                  }}
+                  className="text-white hover:text-gray-300 transition-colors flex items-center gap-1.5 px-2 py-1 bg-white/10 rounded-md text-sm font-medium"
                 >
-                  <Info className="w-4 h-4" />
-                  No Audio?
+                  <Settings className="w-4 h-4" />
+                  Quality
                 </button>
 
-                {showAudioInfo && (
-                  <div className="absolute bottom-full right-0 mb-4 w-64 bg-[#141414] border border-white/10 rounded-lg p-4 shadow-2xl animate-fade-in z-50">
-                    <p className="text-gray-300 text-sm leading-relaxed">
-                      If the video plays but there is no sound, the uploaded
-                      file may be using an unsupported audio codec (like AC3 or
-                      DTS). Try uploading an MP4 file with AAC audio instead.
-                    </p>
+                {showQualityMenu && (
+                  <div className="absolute bottom-full right-0 mb-4 w-32 bg-[#141414] border border-white/10 rounded-lg py-2 shadow-2xl animate-fade-in z-50">
+                    <button className="w-full text-left px-4 py-2 text-sm text-[#e50914] font-medium bg-white/5">
+                      Auto (1080p)
+                    </button>
+                    <button className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/10 transition-colors">
+                      High
+                    </button>
+                    <button className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/10 transition-colors">
+                      Data Saver
+                    </button>
                   </div>
                 )}
               </div>
